@@ -1,178 +1,177 @@
 <?php
-require_once __DIR__."/../includes/functions.php";
-$slug = $_GET["slug"]??"";
-$game = getGameBySlug($slug);
-if(!$game){ header("Location: ".asset("index.php")); exit; }
-$products = getProductsByGame($game["id"]);
-$pageTitle = "Top Up ".$game["name"]." — ".siteName();
+require_once __DIR__.'/../includes/functions.php';
+Security::boot();
 
-// Group produk by category/prefix
-$prodGroups = [];
-foreach($products as $p){
-    $grp = $p["category"]??$p["group_name"]??"Semua";
-    $prodGroups[$grp][] = $p;
-}
-if(count($prodGroups)===1) $prodGroups = ["Semua"=>array_values($products)];
+$slug = Security::cleanInput($_GET['slug'] ?? '');
+if (!$slug) { header('Location: '.asset('index.php')); exit; }
 
-// Game lainnya
-$otherGames = [];
-try{
-    $og=db()->prepare("SELECT id,name,slug,image_url FROM games WHERE is_active=1 AND id!=? AND category_id=? LIMIT 6");
-    $og->execute([$game["id"],$game["category_id"]]); $otherGames=$og->fetchAll();
-}catch(\Exception $e){}
+$db  = db();
+$stmt = $db->prepare("
+    SELECT g.*, c.name AS cat_name, c.slug AS cat_slug
+    FROM games g
+    JOIN categories c ON c.id = g.category_id
+    WHERE g.slug = ? AND g.is_active = 1
+");
+$stmt->execute([$slug]);
+$game = $stmt->fetch();
+if (!$game) { header('Location: '.asset('index.php')); exit; }
 
-// Voucher aktif
-$activeVouchers=[];
-try{
-    $vs=db()->query("SELECT code,type,value,description FROM vouchers WHERE is_active=1 AND (expires_at IS NULL OR expires_at>NOW()) AND used_count<quota ORDER BY value DESC LIMIT 8");
-    $activeVouchers=$vs->fetchAll();
-}catch(\Exception $e){}
+// Ambil produk aktif
+$prodStmt = $db->prepare("SELECT * FROM products WHERE game_id=? AND is_active=1 ORDER BY sort_order ASC, price_sell ASC");
+$prodStmt->execute([$game['id']]);
+$products = $prodStmt->fetchAll();
 
-include __DIR__."/../includes/header.php";
+// Deteksi tipe kategori
+$catSlug = strtolower($game['cat_slug'] ?? '');
+$catName = $game['cat_name'] ?? '';
+
+$isGame        = str_contains($catSlug, 'game')        || str_contains($catName, 'Game');
+$isPulsa       = str_contains($catSlug, 'pulsa')       || str_contains($catName, 'Pulsa');
+$isTagihan     = str_contains($catSlug, 'tagihan')     || str_contains($catName, 'Tagihan')
+              || str_contains($catSlug, 'ppob')        || str_contains($catName, 'PPOB')
+              || str_contains($catSlug, 'pln')         || str_contains($catName, 'PLN');
+$isVoucher     = str_contains($catSlug, 'voucher')     || str_contains($catName, 'Voucher');
+$isEntertain   = str_contains($catSlug, 'entertain')   || str_contains($catName, 'Entertainment')
+              || str_contains($catSlug, 'streaming')   || str_contains($catName, 'Streaming');
+
+// Default ke game jika tidak cocok
+if (!$isPulsa && !$isTagihan && !$isVoucher && !$isEntertain) $isGame = true;
+
+// Identifikasi operator pulsa
+$gameName = strtolower($game['name']);
+$isIndosat    = str_contains($gameName, 'indosat') || str_contains($gameName, 'im3') || str_contains($gameName, 'ooredoo');
+$isXL         = str_contains($gameName, 'xl') || str_contains($gameName, 'axis');
+$isTelkomsel  = str_contains($gameName, 'telkomsel') || str_contains($gameName, 'simpati') || str_contains($gameName, 'kartu as');
+$isByU        = str_contains($gameName, 'byu') || str_contains($gameName, 'by.u');
+$isTri        = str_contains($gameName, 'tri') || str_contains($gameName, '3');
+$isSmartfren  = str_contains($gameName, 'smartfren');
+$isBiznet     = str_contains($gameName, 'biznet');
+$isPLN        = str_contains($gameName, 'pln') || str_contains($gameName, 'listrik') || str_contains($gameName, 'token');
+$isBPJS       = str_contains($gameName, 'bpjs');
+$isPDAM       = str_contains($gameName, 'pdam');
+$isSpotify    = str_contains($gameName, 'spotify');
+$isNetflix    = str_contains($gameName, 'netflix');
+$isVidio      = str_contains($gameName, 'vidio');
+$isYoutube    = str_contains($gameName, 'youtube');
+
+$pageTitle = 'Top Up '.$game['name'].' — '.siteName();
+include __DIR__.'/../includes/header.php';
 ?>
 <style>
-/* ═══ GAME PAGE — Dunia Games inspired ═══ */
-.gp-wrap{max-width:1100px;margin:0 auto;padding:0 20px 60px}
-
-/* Hero */
-.gp-hero{position:relative;overflow:hidden;background:#07080f;height:280px}
-.gp-hero-bg{position:absolute;inset:0;background-size:cover;background-position:center 20%;filter:blur(0px) brightness(.55) saturate(.8);transform:scale(1.02);transition:filter .3s}
-.gp-hero-vignette{position:absolute;inset:0;background:linear-gradient(90deg,rgba(6,13,28,.95) 30%,rgba(6,13,28,.3) 70%,rgba(6,13,28,.1) 100%)}
-.gp-hero-bottom{position:absolute;bottom:0;left:0;right:0;height:80px;background:linear-gradient(to top,var(--bg),transparent)}
-.gp-hero-inner{position:relative;z-index:2;max-width:1100px;margin:0 auto;padding:0 20px;height:100%;display:flex;flex-direction:column;justify-content:flex-end;padding-bottom:24px}
-.gp-bc{display:flex;align-items:center;gap:5px;font-size:.74rem;color:rgba(255,255,255,.4);margin-bottom:20px;padding-top:18px}
-.gp-bc a{color:rgba(255,255,255,.4);text-decoration:none}
-.gp-bc a:hover{color:rgba(255,255,255,.7)}
-.gp-bc-sep{color:rgba(255,255,255,.2)}
-.gp-hero-content{display:flex;align-items:center;gap:18px}
-.gp-hero-logo{width:80px;height:80px;border-radius:16px;object-fit:cover;border:2px solid rgba(255,255,255,.2);box-shadow:0 8px 32px rgba(0,0,0,.7);flex-shrink:0}
-.gp-hero-name{font-family:var(--f-display);font-size:2rem;font-weight:800;color:#fff;letter-spacing:-.5px;line-height:1;text-shadow:0 2px 20px rgba(0,0,0,.8)}
-.gp-hero-pub{font-size:.8rem;color:rgba(255,255,255,.45);margin-top:5px}
-.gp-hero-badges{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
-.gp-badge{display:inline-flex;align-items:center;gap:5px;font-size:.7rem;font-weight:600;padding:3px 9px;border-radius:20px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.55)}
-.gp-badge.b-cyan{color:#d40000;border-color:rgba(212,0,0,.3);background:rgba(212,0,0,.08)}
-.gp-badge.b-green{color:#34d399;border-color:rgba(52,211,153,.3);background:rgba(52,211,153,.07)}
-
-/* Layout */
-.gp-layout{display:grid;grid-template-columns:1fr 310px;gap:20px;align-items:start;padding-top:24px}
-
-/* Product Section */
-.gp-section{margin-bottom:6px}
-.gp-section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
-.gp-section-title{font-weight:700;font-size:.9rem;color:var(--t1);display:flex;align-items:center;gap:8px}
-.gp-count{display:inline-flex;align-items:center;justify-content:center;background:var(--card2);border:1px solid var(--b2);color:var(--t3);font-size:.7rem;font-weight:700;padding:2px 8px;border-radius:12px;min-width:22px}
-
-/* Product Tabs */
-.prod-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px}
-.prod-tab{padding:7px 16px;border-radius:8px;font-size:.8rem;font-weight:600;border:1.5px solid var(--b2);color:var(--t2);background:var(--card);cursor:pointer;transition:all .2s;white-space:nowrap}
-.prod-tab:hover{border-color:rgba(212,0,0,.4);color:var(--t1)}
-.prod-tab.on{background:rgba(212,0,0,.1);border-color:#d40000;color:#ff5566}
-
-/* Product Grid */
-.prod-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px}
-.prod-card{background:var(--card2);border:1.5px solid var(--b1);border-radius:12px;padding:14px;cursor:pointer;transition:all .2s;position:relative;min-height:90px;display:flex;flex-direction:column;gap:4px}
-.prod-card:hover{border-color:rgba(227,24,55,.45);background:rgba(227,24,55,.04);transform:translateY(-1px)}
-.prod-card.sel{border-color:#aa0000;background:rgba(227,24,55,.08);box-shadow:0 0 0 3px rgba(212,0,0,.15)}
-.prod-card.sel::after{content:"✓";position:absolute;top:8px;right:9px;width:20px;height:20px;background:#aa0000;color:white;border-radius:50%;font-size:.72rem;font-weight:800;display:flex;align-items:center;justify-content:center;line-height:1}
-.pc-ico{width:28px;height:28px;border-radius:6px;object-fit:cover;margin-bottom:4px;opacity:.7}
-.pc-name{font-weight:700;font-size:.82rem;color:var(--t1);line-height:1.3;padding-right:22px}
-.pc-desc{font-size:.67rem;color:var(--t3);line-height:1.3}
-.pc-price{font-weight:800;font-size:.95rem;color:#ff8c00;margin-top:auto;padding-top:6px}
-.prod-card.sel .pc-price{color:#ffaa33}
-.pc-badge-wrap{position:absolute;top:0;left:0;right:0;display:flex;justify-content:flex-end}
-.pc-flash{background:linear-gradient(135deg,#ef4444,#dc2626);color:white;font-size:.6rem;font-weight:700;padding:2px 7px;border-radius:0 10px 0 8px;letter-spacing:.3px}
-.pc-limited{background:linear-gradient(135deg,#7c3aed,#6d28d9);color:white;font-size:.6rem;font-weight:700;padding:2px 7px;border-radius:0 10px 0 8px;letter-spacing:.3px}
-
-/* User ID + Detail input */
-.gp-card{background:var(--card);border:1.5px solid var(--b1);border-radius:14px;overflow:hidden;margin-bottom:14px}
-.gp-card-head{display:flex;align-items:center;gap:10px;padding:12px 18px;background:var(--card2);border-bottom:1px solid var(--b1)}
-.gp-step-num{width:24px;height:24px;border-radius:6px;background:linear-gradient(135deg,#aa0000,#b8132d);color:white;font-weight:800;font-size:.78rem;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.gp-card-title{font-weight:700;font-size:.88rem;color:var(--t1)}
-.gp-card-body{padding:16px 18px}
-.gp-label{display:block;font-size:.77rem;font-weight:600;color:var(--t2);margin-bottom:5px}
-
-/* Right panel */
-.sum-panel{background:var(--card);border:1.5px solid var(--b1);border-radius:14px;overflow:hidden;position:sticky;top:76px}
-.sum-ph{padding:14px 18px;background:var(--card2);border-bottom:1px solid var(--b1);font-weight:700;font-size:.88rem;color:var(--t1)}
-.sum-pb{padding:16px 18px}
-.sum-gamebar{display:flex;gap:10px;align-items:center;padding-bottom:12px;border-bottom:1px solid var(--b0);margin-bottom:10px}
-.sum-gamebar img{width:38px;height:38px;border-radius:8px;object-fit:cover}
-.sum-row{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--b0);font-size:.83rem}
-.sum-row:last-of-type{border-bottom:none}
-.sum-lbl{color:var(--t3)}
-.sum-val{color:var(--t1);font-weight:600}
-.sum-total-row{display:flex;justify-content:space-between;align-items:center;padding:12px 0 0;border-top:1.5px solid var(--b2);margin-top:4px}
-.sum-total-lbl{font-weight:700;color:var(--t1);font-size:.88rem}
-.sum-total-val{font-size:1.15rem;font-weight:800;color:#aa0000;font-family:var(--f-display)}
-.btn-bayar{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:13px;margin-top:12px;background:linear-gradient(135deg,#aa0000,#b8132d);color:white;font-weight:800;font-size:.92rem;border:none;border-radius:10px;cursor:pointer;transition:all .2s;box-shadow:0 4px 18px rgba(212,0,0,.3);font-family:var(--f-display)}
-.btn-bayar:hover:not(:disabled){background:linear-gradient(135deg,#d40000,#aa0000);box-shadow:0 6px 24px rgba(212,0,0,.4);transform:translateY(-1px)}
-.btn-bayar:disabled{opacity:.4;cursor:not-allowed;transform:none;background:var(--card2);color:var(--t3);box-shadow:none;border:1px solid var(--b2)}
-.payment-not-sel{font-size:.76rem;color:var(--t3);font-style:italic;text-align:center;margin-top:8px}
-.trust-mini{display:flex;justify-content:center;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid var(--b0)}
-.trust-mini-item{display:flex;align-items:center;gap:4px;font-size:.68rem;color:var(--t3)}
-
-/* Voucher section */
-.voucher-section{margin-bottom:14px}
-.voucher-btn{display:flex;align-items:center;gap:10px;width:100%;background:var(--card);border:1.5px solid var(--b1);border-radius:12px;padding:12px 16px;cursor:pointer;text-align:left;transition:border-color .2s;color:var(--t1)}
-.voucher-btn:hover{border-color:rgba(212,0,0,.3)}
-.voucher-btn-ico{width:36px;height:36px;border-radius:8px;background:linear-gradient(135deg,rgba(212,0,0,.15),rgba(212,0,0,.1));border:1px solid rgba(212,0,0,.2);display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.voucher-drawer{border:1.5px solid var(--b1);border-top:none;border-radius:0 0 12px 12px;background:var(--card);padding:14px 16px;display:none}
-.v-chip{display:inline-flex;align-items:center;gap:6px;background:rgba(34,211,160,.07);border:1px solid rgba(34,211,160,.2);color:#34d399;border-radius:20px;padding:4px 12px;font-size:.75rem;font-weight:600;cursor:pointer;margin:3px}
-.v-chip:hover{background:rgba(34,211,160,.15)}
-
-/* Other games */
-.other-games-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}
-.og-card{text-align:center;text-decoration:none;transition:transform .2s}
-.og-card:hover{transform:translateY(-3px)}
-.og-card img{width:54px;height:54px;border-radius:12px;object-fit:cover;display:block;margin:0 auto 6px;border:1px solid var(--b1)}
-.og-card span{font-size:.72rem;color:var(--t2);font-weight:500;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-
-/* FAQ */
-.faq-item-dg{border:1px solid var(--b1);border-radius:10px;margin-bottom:8px;overflow:hidden}
-.faq-q{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;cursor:pointer;font-size:.84rem;font-weight:600;color:var(--t1);background:var(--card);transition:background .15s}
-.faq-q:hover{background:var(--card2)}
-.faq-a{display:none;padding:0 16px 14px;font-size:.8rem;color:var(--t2);line-height:1.7;background:var(--card)}
-
-@media(max-width:900px){
-  .gp-layout{grid-template-columns:1fr}
-  .prod-grid{grid-template-columns:repeat(3,1fr)}
-  .sum-panel{position:static}
-  .other-games-grid{grid-template-columns:repeat(4,1fr)}
+.gp-wrap{max-width:1100px;margin:0 auto;padding:20px 24px 60px;}
+.gp-hero{background:linear-gradient(135deg,#0a0c1a,#0e1220,#080a14);border-bottom:1px solid var(--b1);padding:24px 0 20px;margin-bottom:0;position:relative;overflow:hidden;}
+.gp-hero-inner{max-width:1100px;margin:0 auto;padding:0 24px;}
+.gp-body{display:grid;grid-template-columns:1fr 360px;gap:20px;margin-top:20px;}
+.gp-left{display:flex;flex-direction:column;gap:16px;}
+.gp-right{position:sticky;top:80px;align-self:flex-start;}
+.step-box{background:var(--card);border:1px solid var(--b1);border-radius:14px;overflow:hidden;}
+.step-head{padding:14px 18px;border-bottom:1px solid var(--b1);display:flex;align-items:center;gap:10px;}
+.step-num{width:26px;height:26px;border-radius:50%;background:var(--red);color:#fff;font-size:.75rem;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.step-title{font-size:.9rem;font-weight:700;color:var(--t1);}
+.step-body{padding:18px;}
+.p-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+.p-card{background:var(--card2);border:2px solid var(--b1);border-radius:10px;padding:12px 10px;cursor:pointer;transition:all .18s;text-align:center;}
+.p-card:hover{border-color:var(--red);background:rgba(227,24,55,.04);}
+.p-card.sel{border-color:var(--red);background:rgba(227,24,55,.07);box-shadow:0 0 0 1px rgba(227,24,55,.3);}
+.p-name{font-size:.78rem;font-weight:600;color:var(--t1);margin-bottom:5px;line-height:1.3;}
+.p-price{font-size:.95rem;font-weight:800;color:var(--red);}
+.p-orig{font-size:.66rem;color:var(--t3);text-decoration:line-through;}
+.finput{width:100%;background:var(--input);border:1.5px solid var(--b2);border-radius:9px;padding:11px 14px;color:var(--t1);font-size:.88rem;font-family:var(--f-body);outline:none;transition:border-color .15s;}
+.finput:focus{border-color:var(--red);box-shadow:0 0 0 3px rgba(227,24,55,.08);}
+.order-panel{background:var(--card);border:1.5px solid var(--b1);border-radius:14px;padding:18px;}
+.drow{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--b0);font-size:.82rem;}
+.drow:last-child{border-bottom:none;}
+.drow-label{color:var(--t3);}
+.drow-val{color:var(--t1);font-weight:600;text-align:right;}
+.total-row{background:var(--card2);border-radius:9px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;margin-top:12px;}
+.total-label{font-size:.82rem;font-weight:700;color:var(--t2);}
+.total-amount{font-size:1.2rem;font-weight:800;color:var(--red);}
+.btn-pay{width:100%;padding:13px;background:linear-gradient(135deg,var(--red),var(--red2));color:#fff;font-size:.95rem;font-weight:800;border:none;border-radius:10px;cursor:pointer;margin-top:12px;transition:all .2s;font-family:var(--f-body);}
+.btn-pay:hover:not(:disabled){filter:brightness(1.1);transform:translateY(-1px);}
+.btn-pay:disabled{opacity:.45;cursor:not-allowed;transform:none;}
+@media(max-width:768px){
+  .gp-wrap { padding: 0 12px 80px !important; }
+  .gp-hero-inner { padding: 14px 12px !important; }
+  .gp-body {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+    margin-top: 12px !important;
+    padding: 0 !important;
+  }
+  .gp-left { order: 1 !important; }
+  .gp-right {
+    order: 2 !important;
+    position: static !important;
+    bottom: auto !important;
+    border-radius: 14px !important;
+    padding: 0 !important;
+    z-index: auto !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    border: none !important;
+  }
+  .order-panel {
+    background: var(--card) !important;
+    border: 1px solid var(--b1) !important;
+    border-radius: 14px !important;
+    padding: 16px !important;
+  }
+  .order-details { display: flex !important; flex-direction: column !important; }
+  .p-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 8px !important; }
+  .step-body { padding: 14px !important; }
+  .step-head { padding: 12px 14px !important; }
+  .total-row { padding: 10px 12px !important; }
+  .total-amount { font-size: 1.1rem !important; }
+  .btn-pay { padding: 12px !important; font-size: .9rem !important; }
 }
-@media(max-width:600px){
-  .prod-grid{grid-template-columns:repeat(2,1fr)}
-  .gp-hero-name{font-size:1.5rem}
-  .other-games-grid{grid-template-columns:repeat(3,1fr)}
+.info-box{background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.15);border-radius:8px;padding:10px 14px;font-size:.76rem;color:#60a5fa;display:flex;gap:8px;align-items:flex-start;}
+.warn-box{background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.15);border-radius:8px;padding:10px 14px;font-size:.76rem;color:#fbbf24;display:flex;gap:8px;align-items:flex-start;}
+.operator-prefix{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;}
+.op-badge{font-size:.66rem;padding:2px 8px;border-radius:20px;background:var(--card2);border:1px solid var(--b1);color:var(--t2);}
+.bc a,.bc span{font-size:.75rem;color:var(--t3);text-decoration:none;}
+.bc a:hover{color:var(--red);}
+.bc svg{color:var(--t3);}
+@media(max-width:768px){
+  .gp-body{grid-template-columns:1fr;}
+  .gp-right{position:fixed;bottom:0;left:0;right:0;background:var(--bg-nav);border-top:1px solid var(--b1);border-radius:14px 14px 0 0;padding:14px 16px;z-index:600;box-shadow:0 -4px 24px rgba(0,0,0,.4);}
+  .gp-wrap{padding:0 0 120px;}
+  .gp-hero-inner,.step-body,.step-head{padding-left:14px;padding-right:14px;}
+  .p-grid{grid-template-columns:repeat(2,1fr);}
+  .order-panel{background:transparent;border:none;padding:0;}
+  .order-details{display:none;}
 }
 </style>
 
-<!-- HERO -->
-<div class="gp-hero">
-  <?php if($game["image_url"]): ?>
-  <div class="gp-hero-bg" style="background-image:url(<?=htmlspecialchars($game["image_url"])?>)"></div>
+<!-- Hero -->
+<div class="gp-hero" id="gp-hero-wrap">
+  <?php if($game['image_url']): ?>
+  <div style="position:absolute;inset:0;background-image:url('<?=htmlspecialchars($game['image_url'])?>');background-size:cover;background-position:center top;opacity:.15;filter:blur(3px);z-index:0;"></div>
   <?php endif; ?>
-  <div class="gp-hero-vignette"></div>
-  <div class="gp-hero-bottom"></div>
-  <div class="gp-hero-inner">
+  <div style="position:absolute;inset:0;background:linear-gradient(to right,rgba(10,12,25,.95) 0%,rgba(10,12,25,.7) 60%,rgba(10,12,25,.4) 100%);z-index:0;"></div>
+  <div class="gp-hero-inner" style="position:relative;z-index:1;">
     <!-- Breadcrumb -->
-    <nav class="gp-bc">
-      <a href="<?=asset("index.php")?>">Beranda</a>
-      <span class="gp-bc-sep">›</span>
-      <a href="<?=asset("index.php")?>">Top Up</a>
-      <span class="gp-bc-sep">›</span>
-      <span style="color:rgba(255,255,255,.65);">Top Up <?=htmlspecialchars($game["name"])?></span>
-    </nav>
-    <div class="gp-hero-content">
-      <?php if($game["image_url"]): ?>
-      <img src="<?=htmlspecialchars($game["image_url"])?>" class="gp-hero-logo" alt="" onerror="this.style.display='none'"/>
+    <div class="bc" style="display:flex;align-items:center;gap:6px;margin-bottom:14px;">
+      <a href="<?=asset('index.php')?>">Beranda</a>
+      <svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
+      <a href="<?=asset('index.php')?>">Top Up</a>
+      <svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
+      <span>Top Up <?=htmlspecialchars($game['name'])?></span>
+    </div>
+    <!-- Game info -->
+    <div style="display:flex;align-items:center;gap:16px;">
+      <?php if($game['image_url']): ?>
+      <img src="<?=htmlspecialchars($game['image_url'])?>" style="width:72px;height:72px;border-radius:14px;object-fit:cover;border:1.5px solid var(--b1);flex-shrink:0;" onerror="this.style.display='none'"/>
       <?php endif; ?>
       <div>
-        <div class="gp-hero-name">Top Up <?=htmlspecialchars($game["name"])?></div>
-        <?php if($game["publisher"]): ?><div class="gp-hero-pub"><?=htmlspecialchars($game["publisher"])?></div><?php endif; ?>
-        <div class="gp-hero-badges">
-          <span class="gp-badge b-cyan">⚡ Proses Instan</span>
-          <span class="gp-badge b-green">🔒 Terjamin Aman</span>
-          <span class="gp-badge">🕐 24/7 Support</span>
+        <h1 style="font-family:var(--f-display);font-size:1.6rem;font-weight:800;margin:0 0 4px;"><?=htmlspecialchars($game['name'])?></h1>
+        <?php if($game['publisher']): ?>
+        <div style="font-size:.78rem;color:var(--t3);"><?=htmlspecialchars($game['publisher'])?></div>
+        <?php endif; ?>
+        <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
+          <span style="display:inline-flex;align-items:center;gap:4px;font-size:.72rem;font-weight:600;padding:3px 10px;border-radius:20px;background:rgba(227,24,55,.1);color:var(--red);border:1px solid rgba(227,24,55,.2);">⚡ Proses Instan</span>
+          <span style="display:inline-flex;align-items:center;gap:4px;font-size:.72rem;font-weight:600;padding:3px 10px;border-radius:20px;background:rgba(16,185,129,.08);color:#34d399;border:1px solid rgba(16,185,129,.2);">🔒 Terjamin Aman</span>
+          <span style="display:inline-flex;align-items:center;gap:4px;font-size:.72rem;font-weight:600;padding:3px 10px;border-radius:20px;background:rgba(255,255,255,.05);color:var(--t2);border:1px solid var(--b2);">💬 24/7 Support</span>
         </div>
       </div>
     </div>
@@ -181,366 +180,328 @@ include __DIR__."/../includes/header.php";
 
 <div class="gp-wrap">
   <?php if(isAdmin()): ?>
-  <div style="background:rgba(239,68,68,.07);border:1px solid rgba(239,68,68,.2);color:#fca5a5;padding:10px 14px;font-size:.82rem;border-radius:9px;margin-top:16px;text-align:center;">
+  <div style="background:rgba(227,24,55,.06);border:1px solid rgba(227,24,55,.2);border-radius:8px;padding:10px 16px;font-size:.8rem;color:var(--red);text-align:center;margin-bottom:16px;font-weight:600;">
     Mode Admin — Tidak dapat melakukan order
   </div>
   <?php endif; ?>
 
-  <div class="gp-layout">
-    <!-- ══ LEFT ══ -->
-    <div>
-      <!-- Step 1: User ID -->
-      <div class="gp-card">
-        <div class="gp-card-head">
-          <div class="gp-step-num">1</div>
-          <div class="gp-card-title">Masukkan ID Akun</div>
+  <div class="gp-body">
+    <div class="gp-left">
+
+      <!-- ════ STEP 1: Input ID — berbeda per kategori ════ -->
+      <div class="step-box">
+        <div class="step-head">
+          <div class="step-num">1</div>
+          <div class="step-title">
+            <?php if($isPulsa): ?>Masukkan Nomor HP
+            <?php elseif($isTagihan && $isPLN): ?>Masukkan Nomor Meter / ID Pelanggan PLN
+            <?php elseif($isTagihan && $isBPJS): ?>Masukkan Nomor VA BPJS
+            <?php elseif($isTagihan && $isPDAM): ?>Masukkan Nomor Pelanggan PDAM
+            <?php elseif($isTagihan): ?>Masukkan Nomor Pelanggan
+            <?php elseif($isVoucher): ?>Masukkan Email / ID Akun
+            <?php elseif($isEntertain && $isSpotify): ?>Masukkan Email Akun Spotify
+            <?php elseif($isEntertain): ?>Masukkan Email Akun
+            <?php else: ?>Masukkan ID Akun Game
+            <?php endif; ?>
+          </div>
         </div>
-        <div class="gp-card-body">
-          <?php if($game["has_server_id"]): ?>
-          <div style="background:rgba(45,212,191,.05);border:1px solid rgba(45,212,191,.15);border-radius:8px;padding:9px 13px;margin-bottom:12px;font-size:.77rem;color:#2dd4bf;display:flex;gap:7px;">
-            <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="flex-shrink:0;margin-top:1px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <div class="step-body">
+
+          <?php if($isPulsa): ?>
+          <!-- PULSA & DATA -->
+          <div class="info-box" style="margin-bottom:14px;">
+            <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="flex-shrink:0;margin-top:1px;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            Pastikan nomor yang diisi adalah nomor aktif
+            <?php if($isIndosat): ?>(Indosat / IM3 / Ooredoo)<?php endif; ?>
+            <?php if($isXL): ?>(XL / AXIS)<?php endif; ?>
+            <?php if($isTelkomsel): ?>(Telkomsel / Simpati / Kartu AS / Loop)<?php endif; ?>
+            <?php if($isByU): ?>(by.U)<?php endif; ?>
+            <?php if($isTri): ?>(Tri / 3)<?php endif; ?>
+            <?php if($isSmartfren): ?>(Smartfren)<?php endif; ?>
+          </div>
+          <div>
+            <label style="font-size:.78rem;font-weight:600;color:var(--t2);margin-bottom:6px;display:block;">Nomor HP</label>
+            <input type="tel" id="inp-phone" class="finput" placeholder="Contoh: 0812xxxxxxxx" maxlength="14"
+                   oninput="onPhoneInput(this)" inputmode="numeric"/>
+            <div class="operator-prefix" id="op-badge-wrap">
+              <?php if($isIndosat): ?>
+              <span class="op-badge">0814</span><span class="op-badge">0815</span><span class="op-badge">0816</span><span class="op-badge">0855</span><span class="op-badge">0856</span><span class="op-badge">0857</span><span class="op-badge">0858</span>
+              <?php elseif($isXL): ?>
+              <span class="op-badge">0817</span><span class="op-badge">0818</span><span class="op-badge">0819</span><span class="op-badge">0859</span><span class="op-badge">0877</span><span class="op-badge">0878</span><span class="op-badge">0831</span><span class="op-badge">0832</span><span class="op-badge">0833</span><span class="op-badge">0838</span>
+              <?php elseif($isTelkomsel): ?>
+              <span class="op-badge">0811</span><span class="op-badge">0812</span><span class="op-badge">0813</span><span class="op-badge">0821</span><span class="op-badge">0822</span><span class="op-badge">0823</span><span class="op-badge">0852</span><span class="op-badge">0853</span>
+              <?php elseif($isTri): ?>
+              <span class="op-badge">0895</span><span class="op-badge">0896</span><span class="op-badge">0897</span><span class="op-badge">0898</span><span class="op-badge">0899</span>
+              <?php elseif($isSmartfren): ?>
+              <span class="op-badge">0881</span><span class="op-badge">0882</span><span class="op-badge">0883</span><span class="op-badge">0884</span><span class="op-badge">0885</span><span class="op-badge">0886</span><span class="op-badge">0887</span><span class="op-badge">0888</span><span class="op-badge">0889</span>
+              <?php endif; ?>
+            </div>
+          </div>
+
+          <?php elseif($isTagihan): ?>
+          <!-- TAGIHAN / PPOB -->
+          <?php if($isPLN): ?>
+          <div class="info-box" style="margin-bottom:14px;">
+            <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="flex-shrink:0;margin-top:1px;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            Token Listrik Prabayar — Masukkan nomor meter 11-13 digit atau ID pelanggan PLN
+          </div>
+          <?php elseif($isBPJS): ?>
+          <div class="info-box" style="margin-bottom:14px;">
+            <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="flex-shrink:0;margin-top:1px;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            BPJS Kesehatan — Masukkan nomor VA atau nomor peserta BPJS (13 digit)
+          </div>
+          <?php elseif($isPDAM): ?>
+          <div class="info-box" style="margin-bottom:14px;">⚠️ Masukkan nomor pelanggan PDAM sesuai yang tertera di tagihan.</div>
+          <?php endif; ?>
+          <div>
+            <label style="font-size:.78rem;font-weight:600;color:var(--t2);margin-bottom:6px;display:block;">
+              <?php if($isPLN): ?>Nomor Meter / ID Pelanggan
+              <?php elseif($isBPJS): ?>Nomor VA BPJS (13 digit)
+              <?php elseif($isPDAM): ?>Nomor Pelanggan PDAM
+              <?php else: ?>Nomor Pelanggan
+              <?php endif; ?>
+            </label>
+            <input type="text" id="inp-phone" class="finput"
+                   placeholder="<?php if($isPLN) echo 'Contoh: 51234567890'; elseif($isBPJS) echo 'Contoh: 0001234567890'; else echo 'Nomor pelanggan...'; ?>"
+                   maxlength="20" oninput="onPhoneInput(this)" inputmode="numeric"/>
+          </div>
+
+          <?php elseif($isEntertain): ?>
+          <!-- ENTERTAINMENT / STREAMING -->
+          <div class="info-box" style="margin-bottom:14px;">
+            <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="flex-shrink:0;margin-top:1px;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <?php if($isSpotify): ?>Langganan Spotify Premium. Masukkan email akun Spotify aktif.
+            <?php elseif($isNetflix): ?>Masukkan email akun Netflix yang akan diperpanjang.
+            <?php elseif($isVidio): ?>Masukkan email akun Vidio atau kamu akan mendapat kode redeem.
+            <?php elseif($isYoutube): ?>Masukkan email Google/Gmail yang terdaftar di YouTube.
+            <?php else: ?>Masukkan email akun yang akan diisi/diperpanjang.
+            <?php endif; ?>
+          </div>
+          <div>
+            <label style="font-size:.78rem;font-weight:600;color:var(--t2);margin-bottom:6px;display:block;">Email Akun</label>
+            <input type="email" id="inp-phone" class="finput"
+                   placeholder="email@example.com" oninput="onPhoneInput(this)"/>
+          </div>
+
+          <?php elseif($isVoucher): ?>
+          <!-- VOUCHER GAME -->
+          <div class="info-box" style="margin-bottom:14px;">
+            <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="flex-shrink:0;margin-top:1px;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            Kode voucher akan dikirim ke email kamu setelah pembayaran berhasil.
+          </div>
+          <div>
+            <label style="font-size:.78rem;font-weight:600;color:var(--t2);margin-bottom:6px;display:block;">Email Penerima Voucher</label>
+            <input type="email" id="inp-phone" class="finput"
+                   placeholder="email@example.com" oninput="onPhoneInput(this)"/>
+          </div>
+
+          <?php else: ?>
+          <!-- GAME (default) -->
+          <?php if($game['has_server_id']): ?>
+          <div class="info-box" style="margin-bottom:14px;">
+            <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="flex-shrink:0;margin-top:1px;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
             Game ini membutuhkan User ID + Server ID
           </div>
-          <?php endif; ?>
-          <div style="display:grid;grid-template-columns:<?=$game["has_server_id"]?"1fr 1fr":"1fr"?>;gap:12px;">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
             <div>
-              <label class="gp-label">User ID
-                <a style="font-size:.69rem;color:#aa0000;font-weight:400;cursor:pointer;margin-left:6px;"
-                   onclick="document.getElementById('id-help-modal').style.display='flex'">ⓘ Cara cek</a>
+              <label style="font-size:.78rem;font-weight:600;color:var(--t2);margin-bottom:5px;display:flex;align-items:center;gap:6px;">
+                User ID
+                <a href="#" onclick="return false;" style="font-size:.66rem;color:var(--red);">❓ Cara cek</a>
               </label>
-              <input type="text" id="inp-userid" placeholder="Masukkan User ID kamu" class="finput" oninput="updateSummary()"/>
+              <input type="text" id="inp-phone" class="finput" placeholder="Masukkan User ID" oninput="onPhoneInput(this)"/>
             </div>
-            <?php if($game["has_server_id"]): ?>
             <div>
-              <label class="gp-label">Server ID</label>
-              <input type="text" id="inp-serverid" placeholder="Server ID" class="finput" oninput="updateSummary()"/>
+              <label style="font-size:.78rem;font-weight:600;color:var(--t2);margin-bottom:5px;display:block;">Server ID</label>
+              <input type="text" id="inp-server" class="finput" placeholder="Server ID" oninput="onServerInput(this)"/>
             </div>
-            <?php endif; ?>
           </div>
-        </div>
-      </div>
-
-      <!-- Step 2: Pilih Produk -->
-      <div class="gp-card">
-        <div class="gp-card-head">
-          <div class="gp-step-num">2</div>
-          <div class="gp-card-title">Pilih Nominal</div>
-        </div>
-        <div class="gp-card-body">
-          <?php
-          $tabs = array_keys($prodGroups);
-          $hasMulti = count($tabs) > 1;
-          ?>
-          <?php if($hasMulti): ?>
-          <div class="prod-tabs" id="prod-tabs">
-            <?php foreach($tabs as $i=>$tab): ?>
-            <button class="prod-tab<?=$i===0?' on':''?>" onclick="switchTab(this,'tab-<?=$i?>')"><?=htmlspecialchars($tab)?> <span class="gp-count"><?=count($prodGroups[$tab])?></span></button>
-            <?php endforeach; ?>
-          </div>
-          <?php endif; ?>
-
-          <?php if(empty($products)): ?>
-          <div style="text-align:center;padding:40px;color:var(--t3);"><p style="font-weight:600;margin-bottom:6px;">Produk belum tersedia</p><p style="font-size:.82rem;">Silakan cek kembali.</p></div>
           <?php else: ?>
-          <?php foreach($tabs as $i=>$tab): ?>
-          <div id="tab-<?=$i?>" class="prod-tab-content" style="<?=$i>0?'display:none':''?>">
-            <div class="prod-grid">
-              <?php foreach($prodGroups[$tab] as $p): ?>
-              <div class="prod-card"
-                   data-id="<?=$p["id"]?>"
-                   data-price="<?=$p["price_sell"]?>"
-                   data-name="<?=htmlspecialchars($p["name"],ENT_QUOTES)?>"
-                   onclick="selectProduct(this)">
-                <?php if($game["image_url"]): ?>
-                <img src="<?=htmlspecialchars($game["image_url"])?>" class="pc-ico" onerror="this.style.display='none'"/>
-                <?php endif; ?>
-                <div class="pc-name"><?=htmlspecialchars($p["name"])?></div>
-                <?php if($p["description"]): ?><div class="pc-desc"><?=htmlspecialchars($p["description"])?></div><?php endif; ?>
-                <div class="pc-price"><?=formatRupiah($p["price_sell"])?></div>
-              </div>
-              <?php endforeach; ?>
-            </div>
+          <div>
+            <label style="font-size:.78rem;font-weight:600;color:var(--t2);margin-bottom:5px;display:flex;align-items:center;gap:6px;">
+              User ID
+              <a href="#" onclick="return false;" style="font-size:.66rem;color:var(--red);">❓ Cara cek</a>
+            </label>
+            <input type="text" id="inp-phone" class="finput" placeholder="Masukkan User ID" oninput="onPhoneInput(this)"/>
           </div>
-          <?php endforeach; ?>
           <?php endif; ?>
-        </div>
-      </div>
+          <?php endif; ?>
 
-      <!-- Step 3: Kontak -->
-      <div class="gp-card">
-        <div class="gp-card-head">
-          <div class="gp-step-num">3</div>
-          <div class="gp-card-title">Detail Kontak</div>
         </div>
-        <div class="gp-card-body">
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-            <div><label class="gp-label">Email <span style="color:#ef4444;">*</span></label>
-            <input type="email" id="inp-email" placeholder="email@kamu.com" class="finput" oninput="enablePay()"/></div>
-            <div><label class="gp-label">No. HP (Opsional)</label>
-            <input type="tel" id="inp-phone" placeholder="08xxxxxxxxxx" class="finput"/></div>
-          </div>
-          <div style="font-size:.72rem;color:var(--t3);margin-top:8px;display:flex;align-items:center;gap:5px;">
-            <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-            Bukti top up dikirim ke email ini
-          </div>
-        </div>
-      </div>
+      </div><!-- end step 1 -->
 
-      <!-- Voucher Section (DG style) -->
-      <div class="voucher-section">
-        <button class="voucher-btn" onclick="toggleVoucher()" id="voucher-toggle-btn">
-          <div class="voucher-btn-ico">
-            <svg width="16" height="16" fill="none" stroke="#d40000" stroke-width="2" viewBox="0 0 24 24"><path d="M20 12v10H4V12"/><path d="M22 7H2v5h20V7z"/></svg>
+      <!-- ════ STEP 2: Pilih Nominal ════ -->
+      <div class="step-box">
+        <div class="step-head">
+          <div class="step-num">2</div>
+          <div class="step-title">
+            <?php if($isPulsa): ?>Pilih Nominal Pulsa / Paket Data
+            <?php elseif($isTagihan): ?>Pilih Nominal
+            <?php elseif($isVoucher): ?>Pilih Voucher
+            <?php elseif($isEntertain): ?>Pilih Paket Berlangganan
+            <?php else: ?>Pilih Nominal
+            <?php endif; ?>
           </div>
-          <div style="flex:1;">
-            <div style="font-weight:600;font-size:.85rem;">Voucher &amp; Promo</div>
-            <div style="font-size:.72rem;color:var(--t3);margin-top:1px;">Masukkan kode promo atau pilih dari daftar</div>
+        </div>
+        <div class="step-body">
+          <?php if(empty($products)): ?>
+          <div style="text-align:center;padding:32px;color:var(--t3);">
+            <div style="font-size:2rem;margin-bottom:8px;">📦</div>
+            <div style="font-size:.84rem;">Produk belum tersedia</div>
+            <div style="font-size:.72rem;margin-top:4px;">Silakan cek kembali.</div>
           </div>
-          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" id="voucher-caret" style="transition:transform .2s"><path d="m6 9 6 6 6-6"/></svg>
-        </button>
-        <div class="voucher-drawer" id="voucher-drawer">
-          <div style="display:flex;gap:8px;margin-bottom:10px;">
-            <input type="text" id="inp-voucher" placeholder="Ketik kode promo" class="finput" style="flex:1;text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()" maxlength="32"/>
-            <button onclick="applyVoucher()" class="btn-ghost" style="padding:9px 14px;font-size:.83rem;white-space:nowrap;">Gunakan</button>
-          </div>
-          <div id="voucher-msg" style="font-size:.76rem;margin-bottom:8px;display:none;"></div>
-          <?php if(!empty($activeVouchers)): ?>
-          <div style="font-size:.72rem;color:var(--t3);margin-bottom:6px;font-weight:600;">PROMO TERSEDIA</div>
-          <div style="display:flex;flex-wrap:wrap;gap:4px;">
-            <?php foreach($activeVouchers as $v): ?>
-            <div class="v-chip" data-code="<?=htmlspecialchars($v["code"],ENT_QUOTES)?>" onclick="useVoucherEl(this)">
-              <?=htmlspecialchars($v["code"])?>
-              <span style="opacity:.4">·</span>
-              <span><?=$v["type"]==="percent"?$v["value"]."%":"Rp ".number_format($v["value"],0,",",".")?> off</span>
+          <?php else: ?>
+          <div class="p-grid" id="product-grid">
+            <?php foreach($products as $p): ?>
+            <div class="p-card" data-id="<?=$p['id']?>" data-name="<?=htmlspecialchars($p['name'],ENT_QUOTES)?>" data-price="<?=(int)$p['price_sell']?>"
+                 onclick="selectProduct(this)">
+              <?php if($p['image_url'] ?? null): ?>
+              <img src="<?=htmlspecialchars($p['image_url'])?>" style="width:32px;height:32px;object-fit:cover;border-radius:6px;margin:0 auto 6px;" onerror="this.style.display='none'"/>
+              <?php endif; ?>
+              <div class="p-name"><?=htmlspecialchars($p['name'])?></div>
+              <?php if($p['price_cost'] ?? 0): ?>
+              <div class="p-orig"><?=formatRupiah($p['price_cost'])?></div>
+              <?php endif; ?>
+              <div class="p-price"><?=formatRupiah($p['price_sell'])?></div>
             </div>
             <?php endforeach; ?>
           </div>
           <?php endif; ?>
         </div>
-      </div>
+      </div><!-- end step 2 -->
 
-      <!-- Other Games -->
-      <?php if(!empty($otherGames)): ?>
-      <div style="margin-top:28px;">
-        <div style="font-weight:700;font-size:.88rem;color:var(--t1);margin-bottom:12px;display:flex;align-items:center;gap:8px;">
-          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="3"/><path d="M6 12h4m-2-2v4M15 12h.01M18 12h.01"/></svg>
-          Game Lainnya
+      <!-- ════ STEP 3: Kontak (untuk semua) ════ -->
+      <div class="step-box">
+        <div class="step-head">
+          <div class="step-num">3</div>
+          <div class="step-title">Detail Kontak</div>
         </div>
-        <div class="other-games-grid">
-          <?php foreach($otherGames as $og): ?>
-          <a href="<?=asset("pages/game.php")?>?slug=<?=urlencode($og["slug"])?>" class="og-card">
-            <?php if($og["image_url"]): ?>
-            <img src="<?=htmlspecialchars($og["image_url"])?>" alt="<?=htmlspecialchars($og["name"])?>" onerror="this.src=''"/>
-            <?php else: ?>
-            <div style="width:54px;height:54px;border-radius:12px;background:var(--card2);margin:0 auto 6px;border:1px solid var(--b1);"></div>
-            <?php endif; ?>
-            <span><?=htmlspecialchars($og["name"])?></span>
-          </a>
-          <?php endforeach; ?>
-        </div>
-      </div>
-      <?php endif; ?>
-
-      <!-- Info & FAQ -->
-      <div style="margin-top:28px;">
-        <div style="font-weight:700;font-size:.88rem;color:var(--t1);margin-bottom:12px;">Info &amp; FAQ</div>
-        <div class="faq-item-dg">
-          <div class="faq-q" onclick="toggleFaq(this)">
-            <span>Bagaimana cara top up <?=htmlspecialchars($game["name"])?>?</span>
-            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+        <div class="step-body">
+          <div class="fg" style="margin-bottom:12px;">
+            <label style="font-size:.78rem;font-weight:600;color:var(--t2);margin-bottom:5px;display:block;">Email (opsional) — untuk notifikasi order</label>
+            <input type="email" id="inp-email" class="finput" placeholder="email@example.com" oninput="updatePanel()"/>
           </div>
-          <div class="faq-a">Masukkan User ID game kamu, pilih nominal yang diinginkan, lalu klik Bayar Sekarang. Top up akan diproses secara otomatis dan langsung masuk ke akun game kamu.</div>
-        </div>
-        <div class="faq-item-dg">
-          <div class="faq-q" onclick="toggleFaq(this)">
-            <span>Berapa lama proses top up?</span>
-            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+          <?php if(!empty(getSetting('whatsapp_number',''))): ?>
+          <div class="warn-box" style="margin-top:4px;">
+            <span style="font-size:.9rem;">💬</span>
+            <span>Ada masalah? <a href="https://wa.me/<?=getSetting('whatsapp_number','')?>" target="_blank" style="color:var(--gold);font-weight:700;">Chat CS via WhatsApp</a></span>
           </div>
-          <div class="faq-a">Proses top up bersifat instan, biasanya selesai dalam hitungan detik hingga maksimal 5 menit setelah pembayaran berhasil.</div>
-        </div>
-        <div class="faq-item-dg">
-          <div class="faq-q" onclick="toggleFaq(this)">
-            <span>Top up tidak masuk, apa yang harus dilakukan?</span>
-            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
-          </div>
-          <div class="faq-a">Cek halaman Cek Transaksi dengan kode order kamu. Jika status masih pending lebih dari 30 menit, hubungi CS kami via WhatsApp atau Telegram yang tersedia di bagian bawah halaman.</div>
-        </div>
-      </div>
-
-    </div>
-
-    <!-- ══ RIGHT: Detail Pembelian ══ -->
-    <div>
-      <div class="sum-panel">
-        <div class="sum-ph">Detail Pembelian</div>
-        <div class="sum-pb">
-          <div class="sum-gamebar">
-            <?php if($game["image_url"]): ?>
-            <img src="<?=htmlspecialchars($game["image_url"])?>" onerror="this.style.display='none'"/>
-            <?php endif; ?>
-            <div>
-              <div style="font-weight:700;font-size:.84rem;color:var(--t1);"><?=htmlspecialchars($game["name"])?></div>
-              <?php if($game["publisher"]): ?><div style="font-size:.7rem;color:var(--t3);"><?=htmlspecialchars($game["publisher"])?></div><?php endif; ?>
-            </div>
-          </div>
-
-          <div class="sum-row"><span class="sum-lbl" id="sum-prod-lbl">Produk</span><span class="sum-val" id="sum-nominal" style="color:var(--t3);font-style:italic;font-weight:400;font-size:.78rem;">Belum dipilih</span></div>
-          <div class="sum-row"><span class="sum-lbl">User ID</span><span class="sum-val" id="sum-userid" style="color:var(--t3);font-style:italic;font-weight:400;font-size:.78rem;">—</span></div>
-          <?php if($game["has_server_id"]): ?>
-          <div class="sum-row"><span class="sum-lbl">Server</span><span class="sum-val" id="sum-serverid" style="color:var(--t3);font-size:.78rem;font-weight:400;">—</span></div>
           <?php endif; ?>
-          <div class="sum-row" id="sum-disc-row" style="display:none;">
-            <span class="sum-lbl" style="color:#22d3a0;">Diskon</span>
-            <span class="sum-val" id="sum-disc" style="color:#22d3a0;"></span>
-          </div>
+        </div>
+      </div><!-- end step 3 -->
 
-          <div class="sum-total-row">
-            <span class="sum-total-lbl">Total</span>
-            <span class="sum-total-val" id="sum-total">Rp 0</span>
-          </div>
+    </div><!-- end gp-left -->
 
-          <button class="btn-bayar" id="btn-pay" onclick="submitOrder()" disabled>
-            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
-            Bayar Sekarang
-          </button>
-          <div class="payment-not-sel" id="pay-hint">Pilih nominal &amp; isi User ID terlebih dahulu</div>
-
-          <div class="trust-mini">
-            <div class="trust-mini-item"><svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>SSL Aman</div>
-            <div class="trust-mini-item"><svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>Instan</div>
-            <div class="trust-mini-item"><svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.3h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8a16 16 0 0 0 6 6l.92-.92a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 21.73 16"/></svg>24/7 CS</div>
+    <!-- ════ ORDER PANEL ════ -->
+    <div class="gp-right">
+      <div class="order-panel">
+        <div style="font-size:.82rem;font-weight:700;color:var(--t2);margin-bottom:14px;">Detail Pembelian</div>
+        <!-- Game info -->
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--b1);">
+          <?php if($game['image_url']): ?>
+          <img src="<?=htmlspecialchars($game['image_url'])?>" style="width:40px;height:40px;border-radius:9px;object-fit:cover;flex-shrink:0;" onerror="this.style.display='none'"/>
+          <?php endif; ?>
+          <div>
+            <div style="font-size:.84rem;font-weight:700;"><?=htmlspecialchars($game['name'])?></div>
+            <div style="font-size:.7rem;color:var(--t3);"><?=htmlspecialchars($game['publisher']??$catName)?></div>
           </div>
         </div>
+        <div class="order-details">
+          <div class="drow"><span class="drow-label">Produk</span><span class="drow-val" id="dp-product" style="color:var(--t3);">Belum dipilih</span></div>
+          <div class="drow"><span class="drow-label" id="dp-id-label">
+            <?php if($isPulsa||$isTagihan): ?>Nomor<?php elseif($isEntertain||$isVoucher): ?>Email<?php else: ?>User ID<?php endif; ?>
+          </span><span class="drow-val" id="dp-userid">—</span></div>
+          <?php if($isGame && $game['has_server_id']): ?>
+          <div class="drow"><span class="drow-label">Server</span><span class="drow-val" id="dp-server">—</span></div>
+          <?php endif; ?>
+        </div>
+        <div class="total-row">
+          <span class="total-label">Total</span>
+          <span class="total-amount" id="dp-total">Rp 0</span>
+        </div>
+        <?php if(!isAdmin()): ?>
+        <?php if(isLoggedIn()): ?>
+        <form id="order-form" method="POST" action="<?=asset('pages/checkout.php')?>">
+          <input type="hidden" name="_token" value="<?=csrfToken()?>">
+          <input type="hidden" name="product_id" id="hid-product">
+          <input type="hidden" name="game_user_id" id="hid-userid">
+          <input type="hidden" name="server_id" id="hid-server">
+          <input type="hidden" name="email" id="hid-email">
+          <button type="submit" class="btn-pay" id="btn-pay" disabled>
+            💳 Bayar Sekarang
+          </button>
+        </form>
+        <div id="pay-hint" style="text-align:center;font-size:.72rem;color:var(--t3);margin-top:8px;">Pilih nominal & isi <?php if($isPulsa||$isTagihan): ?>nomor<?php elseif($isEntertain||$isVoucher): ?>email<?php else: ?>User ID<?php endif; ?> terlebih dahulu</div>
+        <?php else: ?>
+        <a href="<?=asset('auth/login.php')?>?redirect=<?=urlencode($_SERVER['REQUEST_URI'])?>" class="btn-pay" style="display:block;text-align:center;text-decoration:none;padding:13px;">
+          🔑 Masuk untuk Top Up
+        </a>
+        <?php endif; ?>
+        <?php else: ?>
+        <button class="btn-pay" disabled style="opacity:.4;">Mode Admin</button>
+        <?php endif; ?>
+        <!-- Trust badges -->
+        <div style="display:flex;justify-content:center;gap:12px;margin-top:14px;">
+          <span style="font-size:.66rem;color:var(--t3);display:flex;align-items:center;gap:3px;">🔒 SSL Aman</span>
+          <span style="font-size:.66rem;color:var(--t3);display:flex;align-items:center;gap:3px;">⚡ Instan</span>
+          <span style="font-size:.66rem;color:var(--t3);display:flex;align-items:center;gap:3px;">💬 24/7 CS</span>
+        </div>
       </div>
-    </div>
-  </div>
+    </div><!-- end gp-right -->
+  </div><!-- end gp-body -->
 </div>
-
-<!-- "Cara cek ID" modal -->
-<div id="id-help-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;align-items:center;justify-content:center;padding:20px;" onclick="this.style.display='none'">
-  <div style="background:var(--card);border-radius:14px;padding:24px;max-width:340px;width:100%;" onclick="event.stopPropagation()">
-    <div style="font-weight:700;font-size:.95rem;margin-bottom:14px;color:var(--t1);">Cara Cek User ID</div>
-    <ol style="font-size:.82rem;color:var(--t2);line-height:2;padding-left:18px;">
-      <li>Buka game <?=htmlspecialchars($game["name"])?></li>
-      <li>Tap foto profil / ikon akun di pojok kiri atas</li>
-      <li>User ID terlihat di bawah nama karakter</li>
-      <?php if($game["has_server_id"]): ?><li>Server ID ada di sebelah User ID (contoh: (2101))</li><?php endif; ?>
-    </ol>
-    <button onclick="document.getElementById('id-help-modal').style.display='none'" style="width:100%;padding:10px;background:var(--card2);border:1px solid var(--b1);border-radius:8px;color:var(--t2);cursor:pointer;margin-top:14px;font-size:.84rem;">Mengerti</button>
-  </div>
-</div>
-
-<!-- Hidden form -->
-<form id="order-form" method="POST" action="<?=asset("pages/checkout.php")?>" style="display:none;">
-  <input type="hidden" name="_token" value="<?=csrfToken()?>">
-  <input type="hidden" name="product_id" id="f-product">
-  <input type="hidden" name="game_user_id" id="f-userid">
-  <input type="hidden" name="server_id" id="f-serverid">
-  <input type="hidden" name="buyer_email" id="f-email">
-  <input type="hidden" name="buyer_phone" id="f-phone">
-  <input type="hidden" name="voucher_code" id="f-voucher">
-  <input type="hidden" name="game_slug" value="<?=htmlspecialchars($slug)?>">
-</form>
 
 <script>
-var selProduct=null,discType="",discVal=0;
+var selProduct = null;
+var inputVal   = '';
+var serverVal  = '';
 
-function switchTab(btn, tabId){
-  document.querySelectorAll(".prod-tab").forEach(t=>t.classList.remove("on"));
-  document.querySelectorAll(".prod-tab-content").forEach(t=>t.style.display="none");
-  btn.classList.add("on");
-  document.getElementById(tabId).style.display="";
+function formatRp(n) {
+  return 'Rp ' + parseInt(n).toLocaleString('id-ID');
 }
 
-function selectProduct(el){
-  document.querySelectorAll(".prod-card").forEach(c=>c.classList.remove("sel"));
-  el.classList.add("sel");
-  selProduct={id:el.dataset.id,price:parseFloat(el.dataset.price),name:el.dataset.name};
-  updateSummary();
+function selectProduct(el) {
+  document.querySelectorAll('.p-card').forEach(c => c.classList.remove('sel'));
+  el.classList.add('sel');
+  selProduct = { id: el.dataset.id, name: el.dataset.name, price: parseInt(el.dataset.price) };
+  document.getElementById('dp-product').textContent = selProduct.name;
+  document.getElementById('dp-product').style.color = 'var(--t1)';
+  updatePanel();
 }
 
-function updateSummary(){
-  if(selProduct){
-    var n=document.getElementById("sum-nominal");
-    if(n){n.textContent=selProduct.name;n.style.cssText="font-weight:700;color:var(--t1);font-style:normal;font-size:.84rem;";}
-    var pl=document.getElementById("sum-prod-lbl");
-    if(pl)pl.textContent="Produk";
-  }
-  var uid=document.getElementById("inp-userid")?.value.trim()||"—";
-  var uel=document.getElementById("sum-userid");
-  if(uel){uel.textContent=uid;uel.style.cssText=uid!=="—"?"font-weight:600;color:var(--t1);font-style:normal;font-size:.83rem;":"color:var(--t3);font-style:italic;font-weight:400;font-size:.78rem;";}
-  <?php if($game["has_server_id"]): ?>
-  var sid=document.getElementById("inp-serverid")?.value.trim()||"—";
-  var sel2=document.getElementById("sum-serverid");
-  if(sel2){sel2.textContent=sid;sel2.style.cssText=sid!=="—"?"font-weight:600;color:var(--t1);font-size:.83rem;":"color:var(--t3);font-size:.78rem;font-weight:400;";}
-  <?php endif; ?>
-  calcTotal();enablePay();
+function onPhoneInput(el) { inputVal = el.value.trim(); updatePanel(); }
+function onServerInput(el) { serverVal = el.value.trim(); updatePanel(); }
+
+function updatePanel() {
+  var email = (document.getElementById('inp-email') || {}).value || '';
+  document.getElementById('dp-userid').textContent = inputVal || '—';
+  var serverEl = document.getElementById('dp-server');
+  if(serverEl) serverEl.textContent = serverVal || '—';
+  document.getElementById('dp-total').textContent = selProduct ? formatRp(selProduct.price) : 'Rp 0';
+
+  var needServer = <?=$isGame && $game['has_server_id'] ? 'true' : 'false'?>;
+  var canPay = selProduct && inputVal.length >= 3 && (!needServer || serverVal.length >= 1);
+
+  var btn = document.getElementById('btn-pay');
+  var hint = document.getElementById('pay-hint');
+  if(btn) btn.disabled = !canPay;
+  if(hint) hint.style.display = canPay ? 'none' : 'block';
+
+  // Fill hidden inputs
+  var hidProd = document.getElementById('hid-product');
+  var hidUser = document.getElementById('hid-userid');
+  var hidSrv  = document.getElementById('hid-server');
+  var hidEml  = document.getElementById('hid-email');
+  if(hidProd) hidProd.value = selProduct ? selProduct.id : '';
+  if(hidUser) hidUser.value = inputVal;
+  if(hidSrv)  hidSrv.value  = serverVal;
+  if(hidEml)  hidEml.value  = email;
 }
 
-function calcTotal(){
-  if(!selProduct){document.getElementById("sum-total").textContent="Rp 0";return;}
-  var base=selProduct.price,disc=0;
-  if(discType==="percent")disc=Math.round(base*discVal/100);
-  else if(discType==="fixed")disc=Math.min(discVal,base);
-  var total=base-disc;
-  document.getElementById("sum-total").textContent="Rp "+total.toLocaleString("id-ID");
-  var dr=document.getElementById("sum-disc-row"),de=document.getElementById("sum-disc");
-  if(disc>0&&dr&&de){dr.style.display="flex";de.textContent="- Rp "+disc.toLocaleString("id-ID");}
-  else if(dr)dr.style.display="none";
-}
-
-function enablePay(){
-  var uid=document.getElementById("inp-userid")?.value.trim();
-  var email=document.getElementById("inp-email")?.value.trim();
-  var ok=selProduct&&uid&&email&&email.includes("@");
-  var btn=document.getElementById("btn-pay"),hint=document.getElementById("pay-hint");
-  if(btn)btn.disabled=!ok;
-  if(hint)hint.style.display=ok?"none":"block";
-}
-
-function toggleVoucher(){
-  var d=document.getElementById("voucher-drawer"),c=document.getElementById("voucher-caret");
-  var open=d.style.display!=="block";
-  d.style.display=open?"block":"none";
-  if(c)c.style.transform=open?"rotate(180deg)":"";
-}
-
-function applyVoucher(){
-  var code=document.getElementById("inp-voucher")?.value.trim().toUpperCase();
-  var msg=document.getElementById("voucher-msg");
-  if(!code){if(msg){msg.style.display="block";msg.style.color="#f87171";msg.textContent="Masukkan kode voucher.";}return;}
-  fetch("<?=asset('api/voucher_check.php')?>?code="+encodeURIComponent(code))
-    .then(r=>r.json()).then(d=>{
-      if(d.valid){discType=d.type;discVal=d.value;if(msg){msg.style.display="block";msg.style.color="#34d399";msg.textContent="Voucher "+code+" berhasil diterapkan!";}calcTotal();}
-      else{discType="";discVal=0;if(msg){msg.style.display="block";msg.style.color="#f87171";msg.textContent=d.message||"Voucher tidak valid.";}calcTotal();}
-    }).catch(()=>{if(msg){msg.style.display="block";msg.style.color="#f87171";msg.textContent="Gagal cek voucher.";}});
-}
-function useVoucherEl(el){var inp=document.getElementById("inp-voucher");if(inp)inp.value=el.dataset.code;applyVoucher();}
-
-function toggleFaq(el){
-  var a=el.nextElementSibling;
-  var open=a.style.display!=="block";
-  a.style.display=open?"block":"none";
-  var svg=el.querySelector("svg");
-  if(svg)svg.style.transform=open?"rotate(180deg)":"";
-}
-
-function submitOrder(){
-  var uid=document.getElementById("inp-userid")?.value.trim();
-  var email=document.getElementById("inp-email")?.value.trim();
-  if(!selProduct){alert("Pilih nominal terlebih dahulu.");return;}
-  if(!uid){alert("Masukkan User ID game kamu.");return;}
-  if(!email||!email.includes("@")){alert("Masukkan email yang valid.");return;}
-  document.getElementById("f-product").value=selProduct.id;
-  document.getElementById("f-userid").value=uid;
-  document.getElementById("f-serverid").value=document.getElementById("inp-serverid")?.value.trim()||"";
-  document.getElementById("f-email").value=email;
-  document.getElementById("f-phone").value=document.getElementById("inp-phone")?.value.trim()||"";
-  document.getElementById("f-voucher").value=document.getElementById("inp-voucher")?.value.trim().toUpperCase()||"";
-  var btn=document.getElementById("btn-pay");
-  btn.disabled=true;btn.innerHTML="Memproses...";
-  document.getElementById("order-form").submit();
-}
-document.addEventListener("input",enablePay);
+// Prevent form submit jika belum lengkap
+var orderForm = document.getElementById('order-form');
+if(orderForm) orderForm.addEventListener('submit', function(e){
+  if(!selProduct || !inputVal) { e.preventDefault(); return; }
+});
 </script>
-<?php include __DIR__."/../includes/footer.php"; ?>
+
+<?php include __DIR__.'/../includes/footer.php'; ?>
