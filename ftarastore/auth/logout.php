@@ -1,0 +1,1 @@
+<?php require_once __DIR__.'/../includes/functions.php'; logoutUser(); header('Location: '.asset('index.php')); exit;

@@ -1,0 +1,650 @@
+/* ═══════════════════════════════════════════════
+   ftarastore — MOBILE RESPONSIVE
+   assets/css/mobile.css
+   Link di header.php setelah style.css
+   ═══════════════════════════════════════════════ */
+
+/* ── Hamburger & Mobile Nav Toggle ── */
+.mob-menu-btn {
+  display: none;
+  flex-shrink: 0;
+  width: 38px; height: 38px;
+  border-radius: 9px;
+  border: 1.5px solid var(--b2);
+  background: var(--card);
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 5px;
+  padding: 0;
+  transition: all .2s;
+}
+.mob-menu-btn span {
+  display: block;
+  width: 18px; height: 2px;
+  background: var(--t2);
+  border-radius: 99px;
+  transition: all .3s;
+}
+.mob-menu-btn.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+.mob-menu-btn.open span:nth-child(2) { opacity: 0; transform: scaleX(0); }
+.mob-menu-btn.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+/* Mobile search toggle button */
+.mob-search-btn {
+  display: none;
+  width: 38px; height: 38px;
+  border-radius: 9px;
+  border: 1.5px solid var(--b2);
+  background: var(--card);
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all .2s;
+}
+.mob-search-btn svg { color: var(--t2); }
+
+/* Mobile nav drawer */
+.mob-nav-drawer {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 400;
+  pointer-events: none;
+}
+.mob-nav-drawer.open { pointer-events: auto; }
+
+.mob-nav-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,.55);
+  opacity: 0;
+  transition: opacity .3s;
+  backdrop-filter: blur(4px);
+}
+.mob-nav-drawer.open .mob-nav-overlay { opacity: 1; }
+
+.mob-nav-panel {
+  position: absolute;
+  top: 0; left: 0; bottom: 0;
+  width: 280px;
+  background: var(--card);
+  border-right: 1.5px solid var(--b1);
+  box-shadow: 4px 0 32px rgba(0,0,0,.4);
+  transform: translateX(-100%);
+  transition: transform .3s cubic-bezier(.4,0,.2,1);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+.mob-nav-drawer.open .mob-nav-panel { transform: translateX(0); }
+
+.mob-nav-header {
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid var(--b1);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.mob-nav-logo {
+  font-family: var(--f-display);
+  font-size: 20px;
+  font-weight: 300;
+  letter-spacing: 2.5px;
+  color: var(--t1);
+}
+.mob-nav-logo .la { color: #0ea5e9; font-weight: 700; }
+.mob-nav-logo .ls { color: #0ea5e9; }
+.mob-nav-close {
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  border: 1.5px solid var(--b2);
+  background: var(--card2);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--t2);
+  font-size: 1.1rem;
+  transition: all .2s;
+}
+.mob-nav-close:hover { color: var(--t1); border-color: var(--b3); }
+
+.mob-nav-links { padding: 10px 0; flex: 1; }
+.mob-nav-links a {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 20px;
+  font-size: .9rem;
+  font-weight: 500;
+  color: var(--t2);
+  text-decoration: none;
+  border-left: 3px solid transparent;
+  transition: all .18s;
+}
+.mob-nav-links a:hover,
+.mob-nav-links a.on {
+  background: var(--card2);
+  color: #7dd3fc;
+  border-left-color: #38bdf8;
+}
+.mob-nav-links a svg { flex-shrink: 0; opacity: .7; }
+.mob-nav-links a:hover svg,
+.mob-nav-links a.on svg { opacity: 1; color: #38bdf8; }
+
+.mob-nav-divider {
+  height: 1px;
+  background: var(--b1);
+  margin: 6px 20px;
+}
+.mob-nav-label {
+  font-size: .66rem;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: var(--t3);
+  padding: 10px 20px 4px;
+  font-weight: 700;
+}
+
+.mob-nav-actions {
+  padding: 14px 16px;
+  border-top: 1px solid var(--b1);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.mob-nav-actions a,
+.mob-nav-actions button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 11px;
+  border-radius: 9px;
+  font-size: .88rem;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  font-family: var(--f-body);
+  transition: all .2s;
+}
+.mob-btn-ghost {
+  background: var(--card2);
+  border: 1.5px solid var(--b2);
+  color: var(--t1);
+}
+.mob-btn-primary {
+  background: linear-gradient(135deg, #38bdf8, #0ea5e9);
+  border: none;
+  color: #03111f;
+  font-weight: 800;
+  box-shadow: 0 3px 16px rgba(56,189,248,.4);
+}
+
+/* Mobile search bar overlay */
+.mob-search-overlay {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 600;
+  padding: 12px 14px;
+  background: var(--card);
+  border-bottom: 1.5px solid var(--b1);
+  box-shadow: 0 4px 24px rgba(0,0,0,.3);
+  gap: 10px;
+  align-items: center;
+  transform: translateY(-100%);
+  transition: transform .25s cubic-bezier(.4,0,.2,1);
+}
+.mob-search-overlay.open {
+  display: flex;
+  transform: translateY(0);
+}
+.mob-search-overlay .search-bar {
+  flex: 1;
+  max-width: none;
+}
+.mob-search-cancel {
+  background: none;
+  border: none;
+  color: var(--t2);
+  font-size: .84rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  padding: 8px 4px;
+}
+
+/* ════════════════════════════════
+   BREAKPOINTS
+   ════════════════════════════════ */
+
+/* ── Tablet 768px ── */
+@media (max-width: 768px) {
+  /* Header */
+  .hdr-top { padding: 10px 14px; gap: 8px; }
+  .search-bar { display: none; } /* hide desktop search */
+  .mob-search-btn { display: flex; }
+  .hdr-actions { gap: 6px; }
+
+  /* Hide text-only actions, keep icons or abbreviate */
+  .hdr-actions .btn-ghost span,
+  .hdr-actions .btn-ghost .action-label { display: none; }
+
+  /* Nav horizontal scroll sudah ada — pastikan padding ok */
+  .hdr-nav-inner { padding: 0 14px; gap: 0; }
+  .nav-link { padding: 10px 14px; font-size: .82rem; }
+
+  /* Hero */
+  .hero-default { padding: 36px 24px; min-height: 320px; }
+  .hero-grid { grid-template-columns: 1fr !important; }
+  .hero-games { display: none; } /* hide mini cards on mobile */
+  .hero-title { font-size: 2rem !important; }
+  .hero-sub { font-size: .85rem !important; }
+  .hero-stats { gap: 16px !important; }
+  .hero-stat-num { font-size: 1.4rem !important; }
+
+  /* Popular grid */
+  .pop-grid { grid-template-columns: 1fr; gap: 8px; }
+
+  /* Games grid */
+  .games-grid { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+
+  /* Product grid */
+  .product-grid { grid-template-columns: repeat(2, 1fr); }
+
+  /* Game layout */
+  .game-layout { grid-template-columns: 1fr; gap: 18px; }
+  .order-panel { position: static; top: auto; }
+
+  /* Checkout */
+  .checkout-wrap { margin: 20px auto; padding: 0 14px; }
+  .ck-body { padding: 18px 18px; }
+  .ck-head { padding: 16px 18px; }
+
+  /* Auth */
+  .auth-page { margin: 28px auto; padding: 0 14px; }
+  .auth-card { padding: 26px 20px; }
+
+  /* Footer */
+  .footer-inner { grid-template-columns: 1fr 1fr; gap: 28px; padding: 0 14px; }
+  .footer-brand { grid-column: 1 / -1; }
+
+  /* Admin */
+  .admin-sb { width: 200px; }
+  .admin-main { padding: 16px 14px; }
+  .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+
+  /* Cek transaksi */
+  .cek-page { margin: 28px auto; padding: 0 14px; }
+
+  /* Container */
+  .container { padding: 0 14px; }
+  .sec { padding: 20px 0; }
+}
+
+/* ── Mobile 480px ── */
+@media (max-width: 480px) {
+  /* Header — hamburger */
+  .hdr-top { padding: 10px 12px; gap: 8px; }
+  .mob-menu-btn { display: flex; }
+
+  /* Hide desktop nav, use drawer instead */
+  .hdr-nav { display: none; }
+
+  /* Hide action buttons di header — ada di drawer */
+  .hdr-actions .btn-ghost,
+  .hdr-actions .btn-gold { display: none; }
+
+  /* Hanya tampilkan: status, search icon, hamburger */
+  .hdr-actions { gap: 6px; }
+
+  /* Logo ukuran lebih kecil */
+  .logo-name { font-size: 18px !important; letter-spacing: 1.5px !important; }
+  .logo-tag { display: none; }
+
+  /* Hero */
+  .hero-default { padding: 28px 18px; min-height: 280px; border-radius: 14px; }
+  .hero-title { font-size: 1.7rem !important; line-height: 1.2 !important; }
+  .hero-eyebrow { font-size: .7rem !important; }
+  .hero-sub { font-size: .82rem !important; display: none; }
+  .hero-cta-row { gap: 8px !important; }
+  .hero-cta, .hero-cta2 { padding: 10px 16px !important; font-size: .82rem !important; }
+  .hero-stats { gap: 12px !important; padding-top: 16px !important; }
+  .hero-stat-num { font-size: 1.2rem !important; }
+  .hero-stat-label { font-size: .65rem !important; }
+
+  /* Banner */
+  .banner-slide img { height: 220px !important; }
+  .banner-arrow { width: 34px; height: 34px; font-size: 1rem; }
+
+  /* Popular */
+  .pop-grid { grid-template-columns: 1fr; }
+  .pop-card-v2 { padding: 12px 14px; }
+  .pop-icon-wrap { width: 44px; height: 44px; }
+
+  /* Games */
+  .games-grid { grid-template-columns: repeat(2, 1fr); gap: 7px; }
+  .game-card-name { font-size: .72rem; padding: 7px 9px 9px; }
+
+  /* Section */
+  .sec-title h2 { font-size: 1.05rem !important; }
+  .container { padding: 0 12px; }
+  .sec { padding: 18px 0; }
+  .sec-hd { margin-bottom: 14px; }
+
+  /* Cat tabs */
+  .cat-tab { padding: 7px 13px; font-size: .78rem; }
+
+  /* Product grid */
+  .product-grid { grid-template-columns: repeat(2, 1fr); gap: 7px; }
+  .p-card { padding: 10px; }
+  .p-name { font-size: .78rem; }
+  .p-price { font-size: .95rem; }
+
+  /* Game detail hero */
+  .game-hero-inner { gap: 14px; }
+  .game-hero-img, .game-hero-ph { width: 72px; height: 72px; }
+  .game-hero-name { font-size: 1.5rem !important; }
+
+  /* Checkout */
+  .checkout-wrap { padding: 0 10px; margin: 14px auto; }
+  .ck-head { padding: 14px 16px; }
+  .ck-body { padding: 16px 16px; }
+  .total-amount { font-size: 1.3rem; }
+  .btn-pay { font-size: .95rem; padding: 13px; }
+
+  /* Auth */
+  .auth-page { margin: 16px auto; padding: 0 12px; }
+  .auth-card { padding: 22px 16px; border-radius: 14px; }
+  .auth-card h1 { font-size: 1.25rem; }
+
+  /* Footer */
+  .footer { padding: 36px 0 0; margin-top: 28px; }
+  .footer-inner { grid-template-columns: 1fr; gap: 24px; padding: 0 14px; }
+  .footer-brand { grid-column: auto; }
+  .footer-bottom { flex-direction: column; gap: 6px; text-align: center; padding: 14px; }
+
+  /* Admin */
+  .admin-wrap { flex-direction: column; }
+  .admin-sb { width: 100%; border-right: none; border-bottom: 1.5px solid var(--b1); padding: 8px 0; max-height: 52px; overflow: hidden; transition: max-height .3s; }
+  .admin-sb.expanded { max-height: 600px; }
+  .admin-sb-toggle { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; cursor: pointer; font-size: .84rem; font-weight: 600; color: var(--t1); }
+  .admin-main { padding: 14px 12px; }
+  .stats-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .stat-val { font-size: 1.4rem; }
+  .admin-title { font-size: 1.15rem; margin-bottom: 14px; }
+
+  /* Table scroll */
+  .table-wrap, .dtable-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .dtable { min-width: 560px; }
+
+  /* Cek transaksi */
+  .cek-page { padding: 0 12px; margin: 16px auto; }
+  .cek-card { padding: 24px 18px; border-radius: 14px; }
+
+  /* Success */
+  .success-page { padding: 0 12px; margin: 16px auto; }
+  .success-head { padding: 26px 20px; }
+
+  /* Leaderboard */
+  .lb-wrap { padding: 16px 0; }
+
+  /* Kalkulator */
+  .kalk-wrap { padding: 0 12px; margin: 20px auto; }
+  .kalk-card { padding: 22px 16px; border-radius: 14px; }
+
+  /* Flash message */
+  .flash { top: 12px; right: 12px; left: 12px; max-width: none; font-size: .82rem; }
+
+  /* Load more */
+  .btn-load-more { padding: 10px 28px; font-size: .82rem; }
+
+  /* CS FAB — sedikit lebih kecil */
+  .cs-fab { bottom: 16px; right: 14px; }
+  .cs-fab-btn { height: 42px; padding: 0 14px 0 5px; font-size: .78rem; }
+  .cs-fab-icon { width: 32px; height: 32px; }
+  .cs-fab-icon svg { width: 16px; height: 16px; }
+
+  /* CS Panel */
+  .cs-panel { width: 240px; }
+}
+
+/* ── Small mobile 375px ── */
+@media (max-width: 375px) {
+  .hero-title { font-size: 1.5rem !important; }
+  .games-grid { grid-template-columns: repeat(2, 1fr); gap: 6px; }
+  .pop-icon-wrap { width: 40px; height: 40px; }
+  .auth-card { padding: 18px 14px; }
+  .stats-grid { grid-template-columns: 1fr; }
+}
+
+/* ── Touch targets — semua tombol min 44px ── */
+@media (max-width: 768px) {
+  button, a, .nav-link, .cat-tab, .btn-ghost, .btn-gold, .btn-submit, .btn-pay {
+    min-height: 44px;
+  }
+  .cat-tab { min-height: 38px; } /* exception — compact */
+  .nav-link { min-height: 40px; }
+  input, select, textarea { min-height: 44px; font-size: 16px !important; } /* prevent zoom on iOS */
+}
+/* ═══════════════════════════════════════════════════
+   MOBILE REDESIGN — DG Style
+   Bottom nav, compact header, 3-col grid
+   ═══════════════════════════════════════════════════ */
+
+/* ── Sembunyikan dg-sidebar di mobile, ganti bottom nav ── */
+@media (max-width: 899px) {
+  .dg-sidebar { display: none !important; }
+  main.wrap, .wrap, .gp-wrap, .ck-wrap,
+  .admin-wrap, .checkout-wrap { margin-left: 0 !important; }
+
+  /* Beri ruang untuk bottom nav */
+  body { padding-bottom: 64px !important; }
+  .admin-layout body { padding-bottom: 0 !important; }
+}
+
+/* ════════════════════════════════════════════
+   BOTTOM NAVIGATION BAR — DG Style
+   ════════════════════════════════════════════ */
+.mob-bottom-nav {
+  display: none;
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  z-index: 800;
+  background: #07080f;
+  border-top: 1px solid rgba(255,255,255,.08);
+  height: 60px;
+  align-items: center;
+  justify-content: space-around;
+  padding: 0 4px;
+  box-shadow: 0 -4px 20px rgba(0,0,0,.4);
+}
+@media (max-width: 899px) {
+  .mob-bottom-nav { display: flex !important; }
+  .admin-layout .mob-bottom-nav { display: none !important; }
+}
+.mob-bn-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  flex: 1;
+  padding: 8px 4px;
+  text-decoration: none;
+  color: #4a5568;
+  font-size: .58rem;
+  font-weight: 600;
+  letter-spacing: .02em;
+  transition: color .15s;
+  min-height: 60px;
+  position: relative;
+}
+.mob-bn-item svg { width: 22px; height: 22px; stroke-width: 1.7; }
+.mob-bn-item.on { color: #e31837; }
+.mob-bn-item.on::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 20%; right: 20%;
+  height: 2px;
+  background: #e31837;
+  border-radius: 0 0 3px 3px;
+}
+.mob-bn-item:hover { color: #8892a4; }
+
+/* ════════════════════════════════════════════
+   HEADER COMPACT — DG Style
+   ════════════════════════════════════════════ */
+@media (max-width: 480px) {
+  .hdr { position: sticky; top: 0; z-index: 700; }
+  .hdr-top {
+    padding: 0 12px !important;
+    height: 52px !important;
+  }
+  .logo-name { font-size: 17px !important; letter-spacing: 1px !important; }
+  .search-bar { margin: 0 8px !important; }
+  .hdr-nav2 {
+    padding: 0 10px !important;
+    height: 36px !important;
+    overflow-x: auto !important;
+    scrollbar-width: none !important;
+  }
+  .hdr-nav2::-webkit-scrollbar { display: none !important; }
+  .hdr-nav2-left .nav-link {
+    padding: 5px 8px !important;
+    font-size: .72rem !important;
+    white-space: nowrap !important;
+  }
+  .nav-avatar-name { display: none !important; }
+  .nav-avatar-btn { padding: 3px 6px 3px 3px !important; gap: 4px !important; }
+
+  /* Banner — proporsional seperti DG */
+  .banner-slider, .banner-wrap {
+    height: auto !important;
+    max-height: none !important;
+    border-radius: 0 !important;
+  }
+  .banner-slide {
+    height: auto !important;
+  }
+  .banner-slide img {
+    height: auto !important;
+    max-height: 180px !important;
+    object-fit: cover !important;
+  }
+}
+
+/* ════════════════════════════════════════════
+   GAME GRID — 3 kolom seperti DG
+   ════════════════════════════════════════════ */
+@media (max-width: 899px) {
+  .games-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 8px !important;
+  }
+  .game-card-name {
+    font-size: .68rem !important;
+    padding: 5px 7px 7px !important;
+  }
+}
+@media (max-width: 380px) {
+  .games-grid { grid-template-columns: repeat(3, 1fr) !important; gap: 6px !important; }
+  .game-card-name { font-size: .62rem !important; }
+}
+
+/* ════════════════════════════════════════════
+   PRODUCT CARDS — 2 kolom
+   ════════════════════════════════════════════ */
+@media (max-width: 480px) {
+  .product-grid, .p-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px !important;
+  }
+  .p-card, .p-card2 {
+    padding: 10px 10px !important;
+  }
+  .p-name { font-size: .78rem !important; line-height: 1.3 !important; }
+  .p-price { font-size: .88rem !important; }
+  .p-original { font-size: .65rem !important; }
+}
+
+/* ════════════════════════════════════════════
+   POPULAR SECTION — horizontal scroll seperti DG
+   ════════════════════════════════════════════ */
+@media (max-width: 480px) {
+  .pop-grid {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+  }
+  .pop-card-v2 {
+    padding: 10px 12px !important;
+  }
+}
+
+/* ════════════════════════════════════════════
+   SECTION TITLES — compact
+   ════════════════════════════════════════════ */
+@media (max-width: 480px) {
+  .sec-hd { margin-bottom: 10px !important; }
+  .sec-title h2 { font-size: .95rem !important; }
+  .sec { padding: 14px 0 !important; }
+  .container { padding: 0 12px !important; }
+  .sec-hd .btn-ghost { font-size: .72rem !important; padding: 5px 10px !important; }
+}
+
+/* ════════════════════════════════════════════
+   CATEGORY TABS — scroll horizontal
+   ════════════════════════════════════════════ */
+@media (max-width: 480px) {
+  .cat-tabs-wrap, .cats-row {
+    overflow-x: auto !important;
+    scrollbar-width: none !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding-bottom: 4px !important;
+    flex-wrap: nowrap !important;
+  }
+  .cat-tab {
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+    padding: 6px 14px !important;
+    font-size: .76rem !important;
+    min-height: 34px !important;
+  }
+}
+
+/* ════════════════════════════════════════════
+   GAME PAGE (halaman produk) — DG style
+   ════════════════════════════════════════════ */
+@media (max-width: 480px) {
+  .game-layout { grid-template-columns: 1fr !important; gap: 12px !important; }
+  .game-hero-inner { gap: 10px !important; }
+  .game-hero-img, .game-hero-ph { width: 60px !important; height: 60px !important; border-radius: 12px !important; }
+  .game-hero-name { font-size: 1.2rem !important; }
+  .order-panel {
+    position: fixed !important;
+    bottom: 60px !important; /* di atas bottom nav */
+    left: 0 !important; right: 0 !important;
+    border-radius: 16px 16px 0 0 !important;
+    padding: 12px 16px !important;
+    z-index: 600 !important;
+    box-shadow: 0 -4px 24px rgba(0,0,0,.5) !important;
+  }
+}
+
+/* ════════════════════════════════════════════
+   TOUCH TARGETS
+   ════════════════════════════════════════════ */
+@media (max-width: 480px) {
+  button, .btn-gold, .btn-submit, .btn-pay {
+    min-height: 42px !important;
+  }
+  .cat-tab { min-height: 34px !important; }
+  input, select, textarea {
+    min-height: 42px !important;
+    font-size: 16px !important;
+  }
+  .mob-bn-item { min-height: 56px !important; }
+}
