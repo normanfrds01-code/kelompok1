@@ -253,6 +253,83 @@ CREATE TABLE vouchers (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ============================================================
+-- TABLE: digi_products (katalog hasil Sync DigiFlazz)
+-- ============================================================
+CREATE TABLE digi_products (
+    id           INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    sku_code     VARCHAR(100)  NOT NULL UNIQUE COMMENT 'buyer_sku_code dari DigiFlazz',
+    product_name VARCHAR(250)  NOT NULL,
+    brand        VARCHAR(100)  NULL COMMENT 'Brand/provider, dipakai untuk match ke game',
+    category     VARCHAR(80)   NOT NULL DEFAULT 'game',
+    price        INT UNSIGNED  NOT NULL DEFAULT 0 COMMENT 'Harga modal dari DigiFlazz',
+    price_sell   INT UNSIGNED  NOT NULL DEFAULT 0 COMMENT 'Harga jual = modal + markup',
+    description  TEXT          NULL,
+    is_active    TINYINT(1)    NOT NULL DEFAULT 1,
+    created_at   TIMESTAMP     NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at   TIMESTAMP     NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_digi_brand    (brand),
+    INDEX idx_digi_category (category),
+    INDEX idx_digi_active   (is_active)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ============================================================
+-- TABLE: promo_events (Event Game di halaman Promo)
+-- ============================================================
+CREATE TABLE promo_events (
+    id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    emoji       VARCHAR(10)   DEFAULT '🎮',
+    color       VARCHAR(40)   DEFAULT 'rgba(56,189,248,.1)',
+    game        VARCHAR(100)  NULL,
+    title       VARCHAR(150)  NOT NULL,
+    description VARCHAR(255)  NULL,
+    period      VARCHAR(100)  NULL,
+    link_url    VARCHAR(300)  NULL,
+    status      ENUM('live','upcoming','ended') NOT NULL DEFAULT 'live',
+    sort_order  SMALLINT      NOT NULL DEFAULT 0,
+    is_active   TINYINT(1)    NOT NULL DEFAULT 1,
+    created_at  TIMESTAMP     NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at  TIMESTAMP     NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ============================================================
+-- TABLE: explore_streams (Live Streaming di halaman Explore)
+-- ============================================================
+CREATE TABLE explore_streams (
+    id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    title       VARCHAR(180)  NOT NULL,
+    streamer    VARCHAR(100)  NULL,
+    game        VARCHAR(100)  NULL,
+    platform    ENUM('youtube','twitch','facebook','tiktok','other') NOT NULL DEFAULT 'youtube',
+    url         VARCHAR(300)  NOT NULL,
+    emoji       VARCHAR(10)   DEFAULT '📺',
+    viewers     VARCHAR(40)   NULL,
+    status      ENUM('live','upcoming','ended') NOT NULL DEFAULT 'live',
+    sort_order  SMALLINT      NOT NULL DEFAULT 0,
+    is_active   TINYINT(1)    NOT NULL DEFAULT 1,
+    created_at  TIMESTAMP     NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at  TIMESTAMP     NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ============================================================
+-- TABLE: explore_categories (kartu kategori di halaman Explore)
+-- ============================================================
+CREATE TABLE explore_categories (
+    id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    cat_key     VARCHAR(40)   NOT NULL UNIQUE,
+    label       VARCHAR(60)   NOT NULL,
+    emoji       VARCHAR(10)   DEFAULT '📁',
+    color       VARCHAR(40)   DEFAULT 'rgba(227,24,55,.6)',
+    bg          VARCHAR(40)   DEFAULT 'rgba(227,24,55,.1)',
+    badge       VARCHAR(40)   DEFAULT 'var(--red)',
+    tag         VARCHAR(30)   NULL,
+    description VARCHAR(150)  NULL,
+    sort_order  SMALLINT      NOT NULL DEFAULT 0,
+    is_active   TINYINT(1)    NOT NULL DEFAULT 1,
+    created_at  TIMESTAMP     NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at  TIMESTAMP     NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ============================================================
 -- INDEXES
 -- ============================================================
 CREATE INDEX idx_orders_code    ON orders(order_code);

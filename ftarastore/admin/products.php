@@ -19,11 +19,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $act = $_POST['action'] ?? '';
 
     if ($act === 'add') {
-        $db->prepare("INSERT INTO products (game_id,name,description,price_cost,price_sell,digi_code,sort_order,is_active,created_at) VALUES (?,?,?,?,?,?,?,1,NOW())")
+        $db->prepare("INSERT INTO products (game_id,name,description,price_cost,price_modal,price_sell,digi_code,sort_order,is_active,created_at) VALUES (?,?,?,?,?,?,?,?,1,NOW())")
            ->execute([
                $gameId,
                trim($_POST['name'] ?? ''),
                trim($_POST['description'] ?? '') ?: null,
+               (int)($_POST['price_cost'] ?? 0),
                (int)($_POST['price_cost'] ?? 0),
                (int)($_POST['price_sell'] ?? 0),
                trim($_POST['digi_code'] ?? '') ?: null,
@@ -33,10 +34,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     elseif ($act === 'edit') {
         $id = (int)$_POST['id'];
-        $db->prepare("UPDATE products SET name=?,description=?,price_cost=?,price_sell=?,digi_code=?,sort_order=?,is_active=?,updated_at=NOW() WHERE id=? AND game_id=?")
+        $db->prepare("UPDATE products SET name=?,description=?,price_cost=?,price_modal=?,price_sell=?,digi_code=?,sort_order=?,is_active=?,updated_at=NOW() WHERE id=? AND game_id=?")
            ->execute([
                trim($_POST['name'] ?? ''),
                trim($_POST['description'] ?? '') ?: null,
+               (int)($_POST['price_cost'] ?? 0),
                (int)($_POST['price_cost'] ?? 0),
                (int)($_POST['price_sell'] ?? 0),
                trim($_POST['digi_code'] ?? '') ?: null,
@@ -70,11 +72,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $exists->execute([$gameId, $dp['sku_code']]);
                 if ($exists->fetch()) continue;
 
-                $db->prepare("INSERT INTO products (game_id,name,description,price_cost,price_sell,digi_code,sort_order,is_active,created_at) VALUES (?,?,?,?,?,?,?,1,NOW())")
+                $db->prepare("INSERT INTO products (game_id,name,description,price_cost,price_modal,price_sell,digi_code,sort_order,is_active,created_at) VALUES (?,?,?,?,?,?,?,?,1,NOW())")
                    ->execute([
                        $gameId,
                        $dp['product_name'],
                        $dp['description'],
+                       $dp['price'],
                        $dp['price'],
                        $dp['price_sell'],
                        $dp['sku_code'],

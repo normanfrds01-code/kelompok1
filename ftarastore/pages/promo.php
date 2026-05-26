@@ -176,15 +176,23 @@ include __DIR__.'/../includes/header.php';
   <div class="sec-label" id="event">Event Game Aktif</div>
   <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:32px;" data-cat="event">
     <?php
-    $events = [
+    $events = [];
+    try {
+      foreach (db()->query("SELECT emoji,color,game,title,description,period,link_url,status FROM promo_events WHERE is_active=1 ORDER BY sort_order ASC, id DESC")->fetchAll() as $r) {
+        $events[] = ['icon'=>$r['emoji'],'image'=>$r['image']??null,'color'=>$r['color'],'game'=>$r['game'],'title'=>$r['title'],'desc'=>$r['description'],'period'=>$r['period'],'status'=>$r['status'],'link'=>$r['link_url']];
+      }
+    } catch (\Throwable $ex) {}
+    if (empty($events)) {
+      $events = [
       ['icon'=>'⚔️','color'=>'rgba(56,189,248,.1)','game'=>'Mobile Legends','title'=>'Double Diamond Event','desc'=>'Beli diamond ML selama weekend, dapat bonus 10% extra diamond!','period'=>'Setiap Sabtu-Minggu','status'=>'live'],
       ['icon'=>'🔥','color'=>'rgba(251,146,60,.1)','game'=>'Free Fire','title'=>'Top Up Hari Kemerdekaan','desc'=>'Spesial HUT RI, top up FF dapat bonus diamond dan skin eksklusif.','period'=>'17–31 Agustus','status'=>'upcoming'],
       ['icon'=>'💎','color'=>'rgba(167,139,250,.1)','game'=>'Genshin Impact','title'=>'Blessing of the Welkin Moon','desc'=>'Dapatkan harga terbaik untuk top up Genesis Crystal.','period'=>'Berlaku terus','status'=>'live'],
     ];
+    }
     foreach ($events as $e):
     ?>
     <div class="event-card">
-      <div class="event-icon" style="background:<?=$e['color']?>;"><?=$e['icon']?></div>
+      <div class="event-icon" style="background:<?=$e['color']?>;"><?=iconImg($e['image']??null, $e['icon']??'🎮', 40, 10)?></div>
       <div style="flex:1;">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap;">
           <span style="font-size:.92rem;font-weight:700;color:var(--t1);"><?=$e['title']?></span>
@@ -196,7 +204,7 @@ include __DIR__.'/../includes/header.php';
         <div style="font-size:.78rem;color:var(--t3);line-height:1.5;"><?=$e['desc']?></div>
         <div style="font-size:.69rem;color:var(--t3);margin-top:6px;">📅 <?=$e['period']?></div>
       </div>
-      <a href="<?=asset('index.php')?>" style="white-space:nowrap;background:var(--red);color:#fff;font-size:.75rem;font-weight:700;padding:8px 14px;border-radius:7px;text-decoration:none;display:flex;align-items:center;gap:5px;flex-shrink:0;">
+      <a href="<?= !empty($e['link']) ? htmlspecialchars($e['link']) : asset('index.php') ?>" style="white-space:nowrap;background:var(--red);color:#fff;font-size:.75rem;font-weight:700;padding:8px 14px;border-radius:7px;text-decoration:none;display:flex;align-items:center;gap:5px;flex-shrink:0;">
         Top Up →
       </a>
     </div>

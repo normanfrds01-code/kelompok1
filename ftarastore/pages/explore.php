@@ -7,11 +7,12 @@ $db = db();
 try {
     $articles    = $db->query("SELECT * FROM explore_articles WHERE is_active=1 ORDER BY sort_order ASC, created_at DESC LIMIT 12")->fetchAll();
     $tournaments = $db->query("SELECT * FROM explore_tournaments WHERE is_active=1 ORDER BY sort_order ASC LIMIT 6")->fetchAll();
+    try { $streams = $db->query("SELECT * FROM explore_streams WHERE is_active=1 ORDER BY sort_order ASC LIMIT 8")->fetchAll(); } catch (\Throwable $e) { $streams = []; }
 } catch (\Exception $e) {
-    $articles = []; $tournaments = [];
+    $articles = []; $tournaments = []; $streams = [];
 }
 
-$cats = [
+$catsFallback = [
     'artikel'   =>['label'=>'Artikel',      'emoji'=>'📰','color'=>'rgba(227,24,55,.6)','bg'=>'rgba(227,24,55,.1)','badge'=>'var(--red)','tag'=>'Baru','desc'=>'Berita & review game terbaru'],
     'tips'      =>['label'=>'Tips & Trik',  'emoji'=>'💡','color'=>'rgba(245,166,35,.6)','bg'=>'rgba(245,166,35,.1)','badge'=>'var(--gold)','tag'=>'Hot','desc'=>'Panduan & strategi bermain'],
     'turnamen'  =>['label'=>'Turnamen',     'emoji'=>'🏆','color'=>'rgba(56,189,248,.6)','bg'=>'rgba(56,189,248,.1)','badge'=>'#38bdf8','tag'=>'Live','desc'=>'Jadwal & hasil kompetisi'],
@@ -21,6 +22,14 @@ $cats = [
     'update'    =>['label'=>'Update Game',  'emoji'=>'🔔','color'=>'rgba(34,211,160,.6)','bg'=>'rgba(34,211,160,.1)','badge'=>'#22d3a0','tag'=>'Update','desc'=>'Patch notes & update terbaru'],
     'promo'     =>['label'=>'Promo & Event','emoji'=>'🎁','color'=>'rgba(227,24,55,.6)','bg'=>'rgba(227,24,55,.1)','badge'=>'var(--red)','tag'=>'Gratis','desc'=>'Event & giveaway eksklusif'],
 ];
+$cats = [];
+try {
+  foreach (db()->query("SELECT * FROM explore_categories WHERE is_active=1 ORDER BY sort_order ASC, id ASC")->fetchAll() as $rc) {
+    $cats[$rc['cat_key']] = ['label'=>$rc['label'],'emoji'=>$rc['emoji'],'image'=>$rc['image']??null,'color'=>$rc['color'],'bg'=>$rc['bg'],'badge'=>$rc['badge'],'tag'=>$rc['tag'],'desc'=>$rc['description']];
+  }
+} catch (\Throwable $e) {}
+if (empty($cats)) { $cats = $catsFallback; }
+$streams = $streams ?? [];
 $statusMap=['live'=>['#22d3a0','🔴 Live'],'upcoming'=>['#38bdf8','Segera'],'ended'=>['#64748b','Selesai']];
 
 include __DIR__.'/../includes/header.php';
@@ -68,10 +77,10 @@ include __DIR__.'/../includes/header.php';
   <div class="explore-cats">
     <?php foreach ($cats as $key => $c): ?>
     <a href="#<?=$key?>" class="ec" style="--ec-accent:<?=$c['color']?>;">
-      <div class="ec-icon" style="background:<?=$c['bg']?>;"><?=$c['emoji']?></div>
+      <div class="ec-icon" style="background:<?=$c['bg']?>;"><?=iconImg($c['image']??null,$c['emoji']??'📁',30,8)?></div>
       <div class="ec-name"><?=$c['label']?></div>
-      <div class="ec-desc"><?=$c['desc']?></div>
-      <span class="ec-badge" style="background:<?=$c['bg']?>;color:<?=$c['badge']?>;"><?=$c['tag']?></span>
+      <div class="ec-desc"><?=$c['desc'] ?? ''?></div>
+      <?php if (!empty($c['tag'])): ?><span class="ec-badge" style="background:<?=$c['bg']?>;color:<?=$c['badge']?>;"><?=$c['tag']?></span><?php endif; ?>
     </a>
     <?php endforeach; ?>
   </div>
@@ -85,7 +94,7 @@ include __DIR__.'/../includes/header.php';
       $target = !empty($art['url']) ? ' target="_blank" rel="noopener"' : '';
     ?>
     <a href="<?=$link?>"<?=$target?> class="ac">
-      <div class="ac-img"><?=htmlspecialchars($art['emoji'])?></div>
+      <div class="ac-img"><?php if(!empty($art['image'])): ?><img src="<?=htmlspecialchars($art['image'])?>" alt="" style="width:100%;height:100%;object-fit:cover;display:block;"><?php else: ?><?=htmlspecialchars($art['emoji'])?><?php endif; ?></div>
       <div class="ac-body">
         <span class="ac-tag"><?=htmlspecialchars($art['game_name'] ?: $ci['label'])?></span>
         <div class="ac-title"><?=htmlspecialchars($art['title'])?></div>
@@ -112,20 +121,64 @@ include __DIR__.'/../includes/header.php';
     <?php foreach ($tournaments as $t):
       $sc = $statusMap[$t['status']] ?? ['#64748b','—'];
     ?>
-    <div style="background:var(--card);border:1.5px solid var(--b1);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:10px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;">
-        <span style="font-size:1.3rem;"><?=htmlspecialchars($t['emoji'])?></span>
-        <span style="font-size:.64rem;font-weight:700;padding:2px 8px;border-radius:20px;background:<?=$sc[0]?>22;color:<?=$sc[0]?>;"><?=$sc[1]?></span>
+    <div style="background:var(--card);border:1.5px solid var(--b1);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;">
+      <?php if(!empty($t['image'])): ?>
+      <div style="position:relative;">
+        <img src="<?=htmlspecialchars($t['image'])?>" alt="" style="width:100%;height:120px;object-fit:cover;display:block;">
+        <span style="position:absolute;top:10px;right:10px;font-size:.64rem;font-weight:700;padding:3px 9px;border-radius:20px;background:<?=$sc[0]?>;color:#0b0f17;"><?=$sc[1]?></span>
       </div>
-      <div>
-        <div style="font-weight:700;font-size:.88rem;color:var(--t1);"><?=htmlspecialchars($t['name'])?></div>
-        <div style="font-size:.71rem;color:var(--t3);margin-top:2px;"><?=htmlspecialchars($t['game'])?></div>
-      </div>
-      <div style="display:flex;justify-content:space-between;padding-top:8px;border-top:1px solid var(--b0);">
-        <span style="font-size:.71rem;color:var(--t3);">📅 <?=htmlspecialchars($t['date_range']??'—')?></span>
-        <?php if($t['prize']): ?><span style="font-size:.74rem;font-weight:700;color:var(--gold);">🏆 <?=htmlspecialchars($t['prize'])?></span><?php endif; ?>
+      <?php endif; ?>
+      <div style="padding:16px;display:flex;flex-direction:column;gap:10px;">
+        <?php if(empty($t['image'])): ?>
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <span style="font-size:1.6rem;"><?=htmlspecialchars($t['emoji'])?></span>
+          <span style="font-size:.64rem;font-weight:700;padding:2px 8px;border-radius:20px;background:<?=$sc[0]?>22;color:<?=$sc[0]?>;"><?=$sc[1]?></span>
+        </div>
+        <?php endif; ?>
+        <div>
+          <div style="font-weight:700;font-size:.88rem;color:var(--t1);"><?=htmlspecialchars($t['name'])?></div>
+          <div style="font-size:.71rem;color:var(--t3);margin-top:2px;"><?=htmlspecialchars($t['game'])?></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding-top:8px;border-top:1px solid var(--b0);">
+          <span style="font-size:.71rem;color:var(--t3);">📅 <?=htmlspecialchars($t['date_range']??'—')?></span>
+          <?php if($t['prize']): ?><span style="font-size:.74rem;font-weight:700;color:var(--gold);">🏆 <?=htmlspecialchars($t['prize'])?></span><?php endif; ?>
+        </div>
       </div>
     </div>
+    <?php endforeach; ?>
+  </div>
+  <?php endif; ?>
+
+  <?php if (!empty($streams)): ?>
+  <div class="expl-sec" id="livestream">📺 Live Streaming</div>
+  <div class="tourn-grid">
+    <?php foreach ($streams as $stm):
+      $ssc = $statusMap[$stm['status']] ?? ['#64748b','-'];
+    ?>
+    <a href="<?=htmlspecialchars($stm['url'])?>" target="_blank" rel="noopener" style="background:var(--card);border:1.5px solid var(--b1);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;text-decoration:none;transition:border-color .15s;" onmouseover="this.style.borderColor='rgba(227,24,55,.35)'" onmouseout="this.style.borderColor='var(--b1)'">
+      <?php if(!empty($stm['image'])): ?>
+      <div style="position:relative;">
+        <img src="<?=htmlspecialchars($stm['image'])?>" alt="" style="width:100%;height:120px;object-fit:cover;display:block;">
+        <span style="position:absolute;top:10px;right:10px;font-size:.64rem;font-weight:700;padding:3px 9px;border-radius:20px;background:<?=$ssc[0]?>;color:#0b0f17;"><?=$ssc[1]?></span>
+      </div>
+      <?php endif; ?>
+      <div style="padding:16px;display:flex;flex-direction:column;gap:10px;">
+        <?php if(empty($stm['image'])): ?>
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <span style="font-size:1.6rem;"><?=htmlspecialchars($stm['emoji'])?></span>
+          <span style="font-size:.64rem;font-weight:700;padding:2px 8px;border-radius:20px;background:<?=$ssc[0]?>22;color:<?=$ssc[0]?>;"><?=$ssc[1]?></span>
+        </div>
+        <?php endif; ?>
+        <div>
+          <div style="font-weight:700;font-size:.88rem;color:var(--t1);line-height:1.3;"><?=htmlspecialchars($stm['title'])?></div>
+          <div style="font-size:.71rem;color:var(--t3);margin-top:3px;"><?=htmlspecialchars($stm['streamer'] ?? $stm['game'] ?? '')?></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding-top:8px;border-top:1px solid var(--b0);">
+          <span style="font-size:.69rem;color:var(--t3);text-transform:capitalize;"><?=htmlspecialchars($stm['platform'])?></span>
+          <?php if(!empty($stm['viewers'])): ?><span style="font-size:.72rem;font-weight:700;color:var(--red);">👥 <?=htmlspecialchars($stm['viewers'])?></span><?php endif; ?>
+        </div>
+      </div>
+    </a>
     <?php endforeach; ?>
   </div>
   <?php endif; ?>

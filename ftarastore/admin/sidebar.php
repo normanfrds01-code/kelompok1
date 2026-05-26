@@ -50,6 +50,11 @@ $role = currentRole();
     Kelola Produk
   </a>
 
+  <a href="<?= asset('admin/sync-products.php') ?>" class="<?= $cp==='sync-products.php'?'on':'' ?>">
+    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+    Sync Produk Digi
+  </a>
+
   <a href="<?= asset('admin/categories.php') ?>" class="<?= $cp==='categories.php'?'on':'' ?>">
     <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
     Kelola Kategori
@@ -74,6 +79,16 @@ $role = currentRole();
   <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
   Kelola Explore
 </a>
+
+  <a href="<?= asset('admin/promo.php') ?>" class="<?= $cp==='promo.php'?'on':'' ?>">
+    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 12v10H4V12"/><path d="M2 7h20v5H2z"/><path d="M12 22V7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>
+    Kelola Promo &amp; Event
+  </a>
+
+  <a href="<?= asset('admin/rewards.php') ?>" class="<?= $cp==='rewards.php'?'on':'' ?>">
+    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg>
+    Kelola Reward
+  </a>
 
 
   <!-- KONFIGURASI -->

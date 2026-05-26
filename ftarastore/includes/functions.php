@@ -195,19 +195,20 @@ function digiRequest(string $endpoint, array $body): array {
 
 function digiTopUp(string $buyerSkuCode, string $customerNo, string $refId): array {
     return digiRequest('/transaction', [
-        'username'       => DIGI_USERNAME,
+        'username'       => digiUsername(),
         'buyer_sku_code' => $buyerSkuCode,
         'customer_no'    => $customerNo,
         'ref_id'         => $refId,
         'sign'           => digiSign($refId),
-        'testing'        => DIGI_ENV === 'dev',
+        'testing'        => digiEnv() === 'dev',
     ]);
 }
 
 function digiCheckBalance(): array {
-    $sign = md5(DIGI_USERNAME . digiApiKey() . 'depo');
+    $user = digiUsername();
+    $sign = md5($user . digiApiKey() . 'depo');
     return digiRequest('/cek-saldo', [
-        'username' => DIGI_USERNAME,
+        'username' => $user,
         'sign'     => $sign,
     ]);
 }
@@ -300,4 +301,39 @@ function getFlash(): ?array {
     $f = $_SESSION['flash'] ?? null;
     unset($_SESSION['flash']);
     return $f;
+}
+// ── Icon image upload & display helpers ───────────────────────
+/**
+ * Handle upload gambar ikon. Return path gambar (asset url).
+ * Jika tidak ada file diupload, kembalikan $existing.
+ * Jika file lama lokal & ada gambar baru, file lama dihapus.
+ */
+function uploadIconImage(string $fileKey, string $subdir, string $prefix, string $existing = ''): string {
+    if (empty($_FILES[$fileKey]['name'])) return $existing;
+    $errs = Security::validateUpload($_FILES[$fileKey]);
+    if ($errs) { setFlash('error', implode(' ', $errs)); return $existing; }
+    $dir = __DIR__ . '/../assets/images/' . $subdir . '/';
+    if (!is_dir($dir)) @mkdir($dir, 0755, true);
+    $ext      = strtolower(pathinfo($_FILES[$fileKey]['name'], PATHINFO_EXTENSION));
+    $filename = $prefix . '_' . time() . '_' . uniqid() . '.' . $ext;
+    if (move_uploaded_file($_FILES[$fileKey]['tmp_name'], $dir . $filename)) {
+        if ($existing && strpos($existing, '/' . $subdir . '/') !== false) {
+            $old = $dir . basename($existing);
+            if (is_file($old)) @unlink($old);
+        }
+        return asset('assets/images/' . $subdir . '/' . $filename);
+    }
+    setFlash('error', 'Gagal upload gambar. Cek permission folder.');
+    return $existing;
+}
+
+/**
+ * Tampilkan ikon: <img> kalau ada gambar, jika tidak fallback ke emoji.
+ */
+function iconImg(?string $image, string $emoji = '', int $size = 28, int $radius = 8): string {
+    if (!empty($image)) {
+        return '<img src="' . htmlspecialchars($image) . '" alt="" style="width:' . $size . 'px;height:' . $size
+             . 'px;object-fit:cover;border-radius:' . $radius . 'px;display:inline-block;vertical-align:middle;">';
+    }
+    return '<span style="font-size:' . round($size * 0.82) . 'px;line-height:1;">' . htmlspecialchars($emoji) . '</span>';
 }

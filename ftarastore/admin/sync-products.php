@@ -15,10 +15,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // ── SYNC PRODUK DARI DIGIFLAZZ ──
     if ($act === 'sync') {
         try {
-            $sign = md5(DIGI_USERNAME . digiApiKey() . 'pricelist');
+            // Gunakan kredensial dari Pengaturan (bukan konstanta placeholder)
+            $user = digiUsername();
+            $sign = md5($user . digiApiKey() . 'pricelist');
             $payload = [
                 'cmd'      => 'prepaid',
-                'username' => DIGI_USERNAME,
+                'username' => $user,
                 'sign'     => $sign,
             ];
 
@@ -29,7 +31,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 CURLOPT_POST           => true,
                 CURLOPT_POSTFIELDS     => json_encode($payload),
                 CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
-                CURLOPT_TIMEOUT        => 30,
+                CURLOPT_TIMEOUT        => 60,
             ]);
             $resp = curl_exec($ch);
             $err  = curl_error($ch);
@@ -38,53 +40,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($err) throw new Exception('cURL error: ' . $err);
 
             $data = json_decode($resp, true);
-            if (!isset($data['data'])) throw new Exception('Response tidak valid dari DigiFlazz.');
+            if (!is_array($data) || !isset($data['data'])) {
+                throw new Exception('Response tidak valid dari DigiFlazz.');
+            }
+            // DigiFlazz membalas object error (rc != 00) saat kredensial/IP salah
+            if (isset($data['data']['rc']) && ($data['data']['rc'] ?? '') !== '00') {
+                throw new Exception($data['data']['message'] ?? 'DigiFlazz menolak permintaan (cek username, API key & whitelist IP).');
+            }
 
-            $products   = $data['data'];
-            $synced     = 0;
-            $skipped    = 0;
-            $categories = [];
+            $products = $data['data'];
+            $new = 0; $updated = 0; $skipped = 0;
 
-            // Cache kategori dari DB
-            $catRows = $db->query("SELECT id, name, slug FROM categories")->fetchAll();
-            foreach ($catRows as $c) $categories[strtolower($c['slug'])] = $c['id'];
+            $sel = $db->prepare("SELECT id FROM digi_products WHERE sku_code = ?");
+            $ins = $db->prepare("INSERT INTO digi_products (sku_code,product_name,brand,category,price,price_sell,description,is_active,created_at,updated_at) VALUES (?,?,?,?,?,?,?,1,NOW(),NOW())");
+            // Catatan: price_sell TIDAK ditimpa saat update — markup manual admin tetap terjaga.
+            $upd = $db->prepare("UPDATE digi_products SET product_name=?,brand=?,category=?,price=?,description=?,updated_at=NOW() WHERE sku_code=?");
 
             foreach ($products as $p) {
                 $skuCode  = $p['buyer_sku_code'] ?? null;
-                $prodName = $p['product_name'] ?? null;
-                $price    = (int)($p['price'] ?? 0);
-                $category = strtolower($p['category'] ?? 'game');
-                $brand    = $p['brand'] ?? null;
-                $desc     = $p['desc'] ?? null;
-
+                $prodName = $p['product_name']  ?? null;
                 if (!$skuCode || !$prodName) { $skipped++; continue; }
 
-                // Map category
-                $catId = $categories[$category] ?? $categories['game'] ?? 1;
+                $price    = (int)($p['price'] ?? 0);
+                $category = $p['category'] ?? 'game';
+                $brand    = $p['brand'] ?? null;
+                $desc     = $p['desc']  ?? null;
 
-                // Cek apakah sudah ada
-                $exists = $db->prepare("SELECT id FROM digi_products WHERE sku_code = ?");
-                $exists->execute([$skuCode]);
-                $row = $exists->fetch();
-
-                if ($row) {
-                    // Update harga & status
-                    $db->prepare("UPDATE digi_products SET product_name=?,price=?,brand=?,category=?,description=?,updated_at=NOW() WHERE sku_code=?")
-                       ->execute([$prodName, $price, $brand, $category, $desc, $skuCode]);
+                $sel->execute([$skuCode]);
+                if ($sel->fetch()) {
+                    $upd->execute([$prodName, $brand, $category, $price, $desc, $skuCode]);
+                    $updated++;
                 } else {
-                    // Insert baru
                     $sellPrice = $price + (int)round($price * 0.02); // default markup 2%
-                    $db->prepare("INSERT INTO digi_products (sku_code,product_name,brand,category,price,price_sell,description,is_active,created_at,updated_at) VALUES (?,?,?,?,?,?,?,1,NOW(),NOW())")
-                       ->execute([$skuCode, $prodName, $brand, $category, $price, $sellPrice, $desc]);
-                    $synced++;
+                    $ins->execute([$skuCode, $prodName, $brand, $category, $price, $sellPrice, $desc]);
+                    $new++;
                 }
             }
 
-            Security::audit('DIGI_SYNC', "Sync DigiFlazz: $synced produk baru, $skipped dilewati");
-            setFlash('success', "Sync selesai! <strong>$synced</strong> produk baru ditambahkan.");
+            Security::audit('DIGI_SYNC', "Sync DigiFlazz: $new baru, $updated update, $skipped dilewati");
+            setFlash('success', "Sync selesai! <strong>$new</strong> produk baru, <strong>$updated</strong> diperbarui" . ($skipped ? ", $skipped dilewati" : '') . ".");
 
         } catch (\Exception $e) {
-            setFlash('error', 'Sync gagal: ' . $e->getMessage());
+            setFlash('error', 'Sync gagal: ' . htmlspecialchars($e->getMessage()));
         }
         header('Location: ' . asset('admin/sync-products.php')); exit;
     }
@@ -203,8 +200,8 @@ include __DIR__ . '/../includes/header.php';
     </div>
     <div style="background:var(--card);border:1px solid var(--b1);border-radius:10px;padding:14px 16px;">
       <div style="font-size:.61rem;text-transform:uppercase;letter-spacing:.6px;color:var(--t3);margin-bottom:6px;">Mode DigiFlazz</div>
-      <div style="font-size:1rem;font-weight:700;color:<?=DIGI_ENV==='dev'?'#fbbf24':'#34d399'?>;">
-        <?=DIGI_ENV==='dev'?'🧪 Sandbox':'🚀 Production'?>
+      <div style="font-size:1rem;font-weight:700;color:<?=digiEnv()==='dev'?'#fbbf24':'#34d399'?>;">
+        <?=digiEnv()==='dev'?'🧪 Sandbox':'🚀 Production'?>
       </div>
     </div>
   </div>

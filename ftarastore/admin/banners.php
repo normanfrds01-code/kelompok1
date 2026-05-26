@@ -392,7 +392,6 @@ function handleDrop(e, inputId, previewId) {
 function openEditBannerEl(btn){
   document.getElementById('edit-id').value      = btn.dataset.id;
   document.getElementById('edit-title').value   = btn.dataset.title;
-  document.getElementById('edit-img').value     = btn.dataset.img;
   document.getElementById('edit-link').value    = btn.dataset.link;
   document.getElementById('edit-sort').value    = btn.dataset.sort;
   document.getElementById('edit-active').value = btn.dataset.active;

@@ -29,11 +29,14 @@ if (isLoggedIn()) {
     } catch (\Exception $e) {}
 }
 
+$_rwS = [];
+try { foreach (db()->query("SELECT `key`,`value` FROM settings")->fetchAll() as $_r) $_rwS[$_r['key']] = $_r['value']; } catch (\Throwable $e) {}
+$rwOpt = function($k,$def) use ($_rwS){ return (isset($_rwS[$k]) && $_rwS[$k] !== '') ? (int)$_rwS[$k] : $def; };
 $levels = [
-    'bronze'   => ['label'=>'Bronze',   'icon'=>'🥉','color'=>'#cd7f32','min'=>0,       'max'=>500000,  'cashback'=>0],
-    'silver'   => ['label'=>'Silver',   'icon'=>'🥈','color'=>'#8892a4','min'=>500000,  'max'=>2000000, 'cashback'=>1],
-    'gold'     => ['label'=>'Gold',     'icon'=>'🥇','color'=>'#f5a623','min'=>2000000, 'max'=>5000000, 'cashback'=>2],
-    'platinum' => ['label'=>'Platinum', 'icon'=>'💎','color'=>'#60a5fa','min'=>5000000, 'max'=>null,    'cashback'=>3],
+    'bronze'   => ['label'=>'Bronze',   'icon'=>'🥉','color'=>'#cd7f32','min'=>0,                                       'max'=>$rwOpt('reward_min_silver',500000),    'cashback'=>$rwOpt('reward_cb_bronze',0)],
+    'silver'   => ['label'=>'Silver',   'icon'=>'🥈','color'=>'#8892a4','min'=>$rwOpt('reward_min_silver',500000),       'max'=>$rwOpt('reward_min_gold',2000000),     'cashback'=>$rwOpt('reward_cb_silver',1)],
+    'gold'     => ['label'=>'Gold',     'icon'=>'🥇','color'=>'#f5a623','min'=>$rwOpt('reward_min_gold',2000000),        'max'=>$rwOpt('reward_min_platinum',5000000), 'cashback'=>$rwOpt('reward_cb_gold',2)],
+    'platinum' => ['label'=>'Platinum', 'icon'=>'💎','color'=>'#60a5fa','min'=>$rwOpt('reward_min_platinum',5000000),    'max'=>null,                                  'cashback'=>$rwOpt('reward_cb_platinum',3)],
 ];
 
 $curLevel = $levels[$userLevel] ?? $levels['bronze'];

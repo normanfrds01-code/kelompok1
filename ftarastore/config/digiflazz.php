@@ -26,6 +26,7 @@ function _digiGet(string $key, string $fallback): string {
 
 function digiUsername(): string    { return _digiGet('digi_username', DIGI_USERNAME); }
 function digiEnv(): string         { return _digiGet('digi_env', DIGI_ENV); }
+function digiWebhookSecret(): string { return _digiGet('digi_webhook_secret', DIGI_WEBHOOK_SECRET); }
 function digiApiKey(): string {
     return digiEnv() === 'prod'
         ? _digiGet('digi_api_key_prod', DIGI_API_KEY_PROD)

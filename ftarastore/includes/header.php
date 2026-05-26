@@ -1807,17 +1807,29 @@ document.addEventListener('click', function(){
     <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="3"/><path d="M6 12h4m-2-2v4M15 12h.01M18 12h.01"/></svg>
     <span class="dg-sb-label">Produk</span>
   </a>
+  <a href="<?=asset('admin/sync-products.php')?>" class="dg-sb-item <?=$inAdmin&&$cp==='sync-products.php'?'on':''?>">
+    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+    <span class="dg-sb-label">Sync Produk Digi</span>
+  </a>
   <a href="<?=asset('admin/categories.php')?>" class="dg-sb-item <?=$inAdmin&&$cp==='categories.php'?'on':''?>">
     <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
     <span class="dg-sb-label">Kategori</span>
   </a>
-  <a href="<?=asset('admin/vouchers.php')?>" class="dg-sb-item <?=$inAdmin&&$cp==='vouchers.php'?'on':''?>">
-    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M20 12v10H4V12"/><path d="M22 7H2v5h20V7z"/><path d="M12 22V7"/></svg>
-    <span class="dg-sb-label">Voucher</span>
-  </a>
   <a href="<?=asset('admin/banners.php')?>" class="dg-sb-item <?=$inAdmin&&$cp==='banners.php'?'on':''?>">
     <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>
     <span class="dg-sb-label">Banner</span>
+  </a>
+  <a href="<?=asset('admin/explore.php')?>" class="dg-sb-item <?=$inAdmin&&$cp==='explore.php'?'on':''?>">
+    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+    <span class="dg-sb-label">Kelola Explore</span>
+  </a>
+  <a href="<?=asset('admin/promo.php')?>" class="dg-sb-item <?=$inAdmin&&$cp==='promo.php'?'on':''?>">
+    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M20 12v10H4V12"/><path d="M2 7h20v5H2z"/><path d="M12 22V7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>
+    <span class="dg-sb-label">Kelola Promo &amp; Event</span>
+  </a>
+  <a href="<?=asset('admin/rewards.php')?>" class="dg-sb-item <?=$inAdmin&&$cp==='rewards.php'?'on':''?>">
+    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg>
+    <span class="dg-sb-label">Kelola Reward</span>
   </a>
   <div style="width:calc(100%-16px);height:1px;background:var(--b1);margin:4px 8px;flex-shrink:0;"></div>
   <a href="<?=asset('admin/reports.php')?>" class="dg-sb-item <?=$inAdmin&&$cp==='reports.php'?'on':''?>">

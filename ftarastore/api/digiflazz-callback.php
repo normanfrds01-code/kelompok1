@@ -37,13 +37,27 @@ if (!$data || !isset($data['data'])) {
 
 $d = $data['data'];
 
-// Verifikasi signature DigiFlazz
-$sign = md5(DIGI_USERNAME . digiApiKey() . ($d['ref_id'] ?? ''));
-if (isset($d['sign']) && $d['sign'] !== $sign) {
-    error_log('[DigiCallback] Invalid signature');
-    http_response_code(403);
-    echo json_encode(['error' => 'Invalid signature']);
-    exit;
+// Verifikasi keaslian callback DigiFlazz
+$secret = digiWebhookSecret();
+if ($secret !== '' && $secret !== 'webhook_secret_anda') {
+    // DigiFlazz mengirim header: X-Hub-Signature: sha1=<hmac>
+    $hdr      = $_SERVER['HTTP_X_HUB_SIGNATURE'] ?? '';
+    $expected = 'sha1=' . hash_hmac('sha1', $rawBody, $secret);
+    if (!hash_equals($expected, $hdr)) {
+        error_log('[DigiCallback] Invalid X-Hub-Signature');
+        http_response_code(403);
+        echo json_encode(['error' => 'Invalid signature']);
+        exit;
+    }
+} elseif (isset($d['sign'])) {
+    // Fallback (jika webhook secret belum diatur di Pengaturan)
+    $sign = md5(digiUsername() . digiApiKey() . ($d['ref_id'] ?? ''));
+    if (!hash_equals($sign, (string)$d['sign'])) {
+        error_log('[DigiCallback] Invalid signature');
+        http_response_code(403);
+        echo json_encode(['error' => 'Invalid signature']);
+        exit;
+    }
 }
 
 $refId  = $d['ref_id']  ?? null;  // = order_code kita

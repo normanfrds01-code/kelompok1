@@ -9,7 +9,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     'whatsapp_number','instagram_url','telegram_url','telegram_channel_url',
     'midtrans_env','midtrans_server_key_sandbox','midtrans_client_key_sandbox',
     'midtrans_server_key_production','midtrans_client_key_production',
-    'digi_username','digi_api_key_dev','digi_api_key_prod','digi_env',
+    'digi_username','digi_api_key_dev','digi_api_key_prod','digi_env','digi_webhook_secret',
     'fee_type','fee_value','system_status'
   ] as $k){
     $v=trim($_POST[$k]??'');
